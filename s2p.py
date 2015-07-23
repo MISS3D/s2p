@@ -194,13 +194,14 @@ def process_pair_single_tile(out_dir, img1, rpc1, img2, rpc2, x=None, y=None,
 
     return
 
-def compute_dem_proxy(*args,**kwargs):
+def compute_dem_proxy(A_global_file,out, x, y, w, h, z, rpc1, rpc2, H1, H2, disp, mask, rpc_err):
     """
     Proxy for the triangulation.compute_dem method so that it can be used with introspection.
     
     This proxy functions forwards args and kwargs to triangulation.compute_dem
     """
-    triangulation.compute_dem(*args,**kwargs)
+    A_global = np.loadtxt(A_global_file)
+    triangulation.compute_dem(out, x, y, w, h, z, rpc1, rpc2, H1, H2, disp, mask, rpc_err,A_global)
 
 def show_progress(a):
     """
@@ -507,7 +508,8 @@ def get_single_tile_triangulation_jobs(out_dir,rpc1,rpc2, tiles):
             continue
 
         new_job={"command" : "compute_dem_proxy",
-                 "args" : { "out" : height_map,
+                 "args" : { "A_global_file": '%s/pointing.txt' % out_dir,
+                            "out" : height_map,
                             "x" : col,
                             "y" : row,
                             "w" : tw,
@@ -520,7 +522,6 @@ def get_single_tile_triangulation_jobs(out_dir,rpc1,rpc2, tiles):
                             "disp" : disp,
                             "mask" : mask,
                             "rpc_err": rpc_err,
-                            "A": A_global
                             }}
         jobs.append(new_job)
     return jobs
