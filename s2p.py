@@ -287,9 +287,7 @@ def list_all_tiles(x,y,w,h,tw,th,ov,out_dir):
     
     # ensure that the coordinates of the ROI are multiples of the zoom factor,
     # to avoid bad registration of tiles due to rounding problems.
-    z = cf
-
-    g['subsampling_factor']
+    z = cfg['subsampling_factor']
     x, y, w, h = common.round_roi_to_nearest_multiple(z, x, y, w, h)
     
     # TODO: automatically compute optimal size for tiles
@@ -402,9 +400,9 @@ def compute_global_correction(tiles,out_dir):
 
 def get_single_tile_stereo_jobs_retry(out_dir, img1, rpc1, img2, rpc2, tiles, ntx, nty, cld_msk=None, roi_msk=None):
 
-     """
-     Get an array of calls to process_pair_single_tile to be retried
-     once the local correction is guessed from neighbors or from global correction.
+    """
+    Get an array of calls to process_pair_single_tile to be retried
+    once the local correction is guessed from neighbors or from global correction.
 
     Args:
         out_dir: path to the output directory
@@ -422,7 +420,7 @@ def get_single_tile_stereo_jobs_retry(out_dir, img1, rpc1, img2, rpc2, tiles, nt
 
     Returns:
         A list of dicionnaries describing calls to process_pair_single_tile to be made.
-     """
+    """
 
     jobs = []
 
@@ -467,22 +465,20 @@ def get_single_tile_stereo_jobs_retry(out_dir, img1, rpc1, img2, rpc2, tiles, nt
     return jobs
 
 def get_single_tile_triangulation_jobs(out_dir,rpc1,rpc2, tiles):
-     """
-     Get an array of calls to the compute_dem_proxy method.
-     
-     Args:
+    """
+    Get an array of calls to the compute_dem_proxy method.
+    
+    Args:
         out_dir: path to the output directory
         rpc1: paths to the xml file containing the rpc coefficients of the
-            reference image
+        reference image
         rpc2: paths to the xml file containing the rpc coefficients of the
-            secondary image
+        secondary image
         tiles: the vector of dictionaries describing all tiles
 
     Returns:
         A list of dicionnaries describing calls to compute_dem_proxy to be made.
-     """
-    
-
+    """
     z = cfg['subsampling_factor']
     A_global = np.loadtxt('%s/pointing.txt' % out_dir)
     
