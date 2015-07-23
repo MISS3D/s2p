@@ -447,9 +447,16 @@ def get_single_tile_triangulation_jobs(out_dir,rpc1,rpc2, tiles):
                             }}
         jobs.append(new_job)
     return jobs
-        
+
+def write_jobs(out_dir,filename,jobs):
+    f = open(os.path.join(out_dir,filename),'w')
+    f.writelines(["%s\n" % json.dumps(job) for job in jobs])
+    f.close()
+    
+    
+
 def process_pair(out_dir, img1, rpc1, img2, rpc2, x, y, w, h, tw=None, th=None,
-                 ov=None, cld_msk=None, roi_msk=None):
+                 ov=None, cld_msk=None, roi_msk=None,steps = ["stereo","retry","triangulate","mosaic"]):
     """
     Computes a height map from a Pair of pushbroom images, using tiles.
 
@@ -485,67 +492,84 @@ def process_pair(out_dir, img1, rpc1, img2, rpc2, x, y, w, h, tw=None, th=None,
 
     # duplicate stdout and stderr to log file
     tee.Tee('%s/stdout.log' % out_dir, 'w')
+
+    # We need out file in any case
+    out = '%s/height_map.tif' % out_dir
     
     # list all tiles
     (tiles,tw,th,ov) = list_all_tiles(x,y,w,h,tw,th,ov,out_dir)
+
+    if "stereo" in steps:
     
-    # Get the list of tiles to process
-    jobs = get_single_tile_stereo_jobs(out_dir, img1, rpc1, img2, rpc2, tiles,
+        # Get the list of tiles to process
+        jobs = get_single_tile_stereo_jobs(out_dir, img1, rpc1, img2, rpc2, tiles,
                  ov, cld_msk, roi_msk)
 
-    # Process the stereo jobs
-    print "Local stereo jobs ..."
-    if cfg["debug"]:
-        process_jobs(jobs,mode="sequential")
-    else:
-        process_jobs(jobs,mode="multiprocessing")
+        # Process the stereo jobs
+        print "Local stereo jobs ..."
+        if cfg["debug"] or cfg["running_mode"] == "sequential":
+            process_jobs(jobs,mode="sequential")
+        elif cfg["running_mode"] == "multiprocessing":
+            process_jobs(jobs,mode="multiprocessing")
+        elif cfg["running_mode"] == "list_jobs":
+            print "Jobs written to "+os.path.join(out_dir,"stereo.jobs")
+            for job in jobs:
+                write_jobs(out_dir,"stereo.jobs",jobs)
 
 
-    # Compute the global correction
-    compute_global_correction(tiles,out_dir)
+    if "retry" in steps:
+        # Compute the global correction
+        compute_global_correction(tiles,out_dir)
 
-    # Get the list of tile to retry
-    jobs = get_single_tile_stereo_jobs_retry(out_dir, img1, rpc1, img2, rpc2, tiles,
-                                             ov, cld_msk, roi_msk)
+        # Get the list of tile to retry
+        jobs = get_single_tile_stereo_jobs_retry(out_dir, img1, rpc1, img2, rpc2, tiles,
+                                                 ov, cld_msk, roi_msk)
+ 
+        # Process the stereo jobs
+        print "Local stereo jobs (retry) ..."
+        if cfg["debug"] or cfg["running_mode"] == "sequential":
+            process_jobs(jobs,mode="sequential")
+        elif cfg["running_mode"] == "multiprocessing":
+            process_jobs(jobs,mode="multiprocessing")
+        elif cfg["running_mode"] == "list_jobs":
+            print "Jobs written to "+os.path.join(out_dir,"retry.jobs")
+            for job in jobs:
+                write_jobs(out_dir,"retry.jobs",jobs)
 
-    # Process the stereo jobs
-    print "Local stereo jobs (retry) ..."
-    if cfg["debug"]:
-        process_jobs(jobs,mode="sequential")
-    else:
-        process_jobs(jobs,mode="multiprocessing")
-
-    
-    jobs = get_single_tile_triangulation_jobs(out_dir,rpc1, rpc2, tiles)
+    if "triangulate" in steps:
+        jobs = get_single_tile_triangulation_jobs(out_dir,rpc1, rpc2, tiles)
         
 
-    # Process the stereo jobs
-    print "Triangulation jobs ..."
-    if cfg["debug"]:
-        process_jobs(jobs,mode="sequential")
-    else:
-        process_jobs(jobs,mode="multiprocessing")
+        # Process the stereo jobs
+        print "Triangulation jobs ..."
+        if cfg["debug"] or cfg["running_mode"] == "sequential":
+            process_jobs(jobs,mode="sequential")
+        elif cfg["running_mode"] == "multiprocessing":
+            process_jobs(jobs,mode="multiprocessing")
+        elif cfg["running_mode"] == "list_jobs":
+            print "Jobs written to "+os.path.join(out_dir,"triangulate.jobs")
+            for job in jobs:
+                write_jobs(out_dir,"triangulate.jobs",jobs)
 
-
-    print "Finalize ..."
-    # tiles composition
-    z = cfg['subsampling_factor']
-    out = '%s/height_map.tif' % out_dir
-    tmp = ['%s/height_map.tif' % t["tile_dir"] for t in tiles]
-    if not os.path.isfile(out) or not cfg['skip_existing']:
-        print "Mosaicing tiles with %s..." % cfg['mosaic_method']
-        if cfg['mosaic_method'] == 'gdal':
-            tile_composer.mosaic_gdal(out, w/z, h/z, tmp, tw/z, th/z, ov/z)
-        else:
-            tile_composer.mosaic(out, w/z, h/z, tmp, tw/z, th/z, ov/z)
-    common.garbage_cleanup()
+    if "mosaic" in steps:
+        print "Mosaic height maps ..."
+        # tiles composition
+        z = cfg['subsampling_factor']
+        tmp = ['%s/height_map.tif' % t["tile_dir"] for t in tiles]
+        if not os.path.isfile(out) or not cfg['skip_existing']:
+            print "Mosaicing tiles with %s..." % cfg['mosaic_method']
+            if cfg['mosaic_method'] == 'gdal':
+                tile_composer.mosaic_gdal(out, w/z, h/z, tmp, tw/z, th/z, ov/z)
+            else:
+                tile_composer.mosaic(out, w/z, h/z, tmp, tw/z, th/z, ov/z)
+        common.garbage_cleanup()
 
     return out
 
 
 def process_triplet(out_dir, img1, rpc1, img2, rpc2, img3, rpc3, x=None, y=None,
                     w=None, h=None, thresh=3, tile_w=None, tile_h=None,
-                    overlap=None, prv1=None, cld_msk=None, roi_msk=None):
+                    overlap=None, prv1=None, cld_msk=None, roi_msk=None,steps = ["stereo","retry","triangulate","mosaic"]):
     """
     Computes a height map from three Pleiades images.
 
@@ -593,16 +617,18 @@ def process_triplet(out_dir, img1, rpc1, img2, rpc2, img3, rpc3, x=None, y=None,
     out_dir_left = '%s/left' % out_dir
     height_map_left = process_pair(out_dir_left, img1, rpc1, img2, rpc2, x, y,
                                    w, h, tile_w, tile_h, overlap, cld_msk,
-                                   roi_msk)
+                                   roi_msk,steps)
 
     out_dir_right = '%s/right' % out_dir
     height_map_right = process_pair(out_dir_right, img1, rpc1, img3, rpc3, x,
                                     y, w, h, tile_w, tile_h, overlap, cld_msk,
-                                    roi_msk)
+                                    roi_msk,steps)
 
-    # merge the two height maps
     height_map = '%s/height_map.tif' % out_dir
-    fusion.merge(height_map_left, height_map_right, thresh, height_map)
+    
+    if "merge" in steps:
+        # merge the two height maps
+        fusion.merge(height_map_left, height_map_right, thresh, height_map)
 
     common.garbage_cleanup()
     return height_map
@@ -787,14 +813,8 @@ def check_parameters(usr_cfg):
             json file. It will be ignored.""" % k
 
 
-def main(config_file):
-    """
-    Launches s2p with the parameters given by a json file.
-
-    Args:
-        config_file: path to the config json file
-    """
-    # read the json configuration file
+def init(config_file):
+ # read the json configuration file
     f = open(config_file)
     user_cfg = json.load(f)
     f.close()
@@ -853,15 +873,29 @@ def main(config_file):
     json.dump(cfg, f, indent=2)
     f.close()
 
-    # measure total runtime
-    t0 = time.time()
+   
 
     # needed srtm tiles
     srtm_tiles = srtm.list_srtm_tiles(cfg['images'][0]['rpc'],
                                            *cfg['roi'].values())
     for s in srtm_tiles:
         srtm.get_srtm_tile(s, cfg['srtm_dir'])
+    
+            
+def main(config_file,steps=[]):
+    """
+    Launches s2p with the parameters given by a json file.
 
+    Args:
+        config_file: path to the config json file
+    """
+
+    # measure total runtime
+    t0 = time.time()
+    
+    # Always do init
+    init(config_file)
+   
     # height map
     if len(cfg['images']) == 2:
         height_map = process_pair(cfg['out_dir'], cfg['images'][0]['img'],
@@ -869,7 +903,7 @@ def main(config_file):
                            cfg['images'][1]['rpc'], cfg['roi']['x'],
                            cfg['roi']['y'], cfg['roi']['w'], cfg['roi']['h'],
                            None, None, None, cfg['images'][0]['cld'],
-                           cfg['images'][0]['roi'])
+                                  cfg['images'][0]['roi'],steps)
     else:
         height_map = process_triplet(cfg['out_dir'], cfg['images'][0]['img'],
                               cfg['images'][0]['rpc'], cfg['images'][1]['img'],
@@ -877,22 +911,26 @@ def main(config_file):
                               cfg['images'][2]['rpc'], cfg['roi']['x'],
                               cfg['roi']['y'], cfg['roi']['w'], cfg['roi']['h'],
                               cfg['fusion_thresh'], None, None, None, None,
-                              cfg['images'][0]['cld'], cfg['images'][0]['roi'])
+                                     cfg['images'][0]['cld'], cfg['images'][0]['roi'],steps)
 
     # point cloud
-    generate_cloud(cfg['out_dir'], height_map, cfg['images'][0]['rpc'],
-                   cfg['roi']['x'], cfg['roi']['y'], cfg['roi']['w'],
-                   cfg['roi']['h'], cfg['images'][0]['img'],
-                   cfg['images'][0]['clr'], cfg['offset_ply'])
+    if "cloud" in steps:
+        generate_cloud(cfg['out_dir'], height_map, cfg['images'][0]['rpc'],
+                       cfg['roi']['x'], cfg['roi']['y'], cfg['roi']['w'],
+                       cfg['roi']['h'], cfg['images'][0]['img'],
+                       cfg['images'][0]['clr'], cfg['offset_ply'])
 
-    # digital surface model
-    out_dsm = '%s/dsm.tif' % cfg['out_dir']
-    point_clouds_list = glob.glob('%s/cloud.ply' % cfg['out_dir'])
-    generate_dsm(out_dsm, point_clouds_list, cfg['dsm_resolution'])
+    if "dsm" in steps:
+        
+        # digital surface model
+        out_dsm = '%s/dsm.tif' % cfg['out_dir']
+        point_clouds_list = glob.glob('%s/cloud.ply' % cfg['out_dir'])
+        generate_dsm(out_dsm, point_clouds_list, cfg['dsm_resolution'])
 
-    # crop corresponding areas in the secondary images
-    if not cfg['full_img']:
-        crop_corresponding_areas(cfg['out_dir'], cfg['images'], cfg['roi'])
+    if "crop_color" in steps:
+        # crop corresponding areas in the secondary images
+        if not cfg['full_img']:
+            crop_corresponding_areas(cfg['out_dir'], cfg['images'], cfg['roi'])
 
     # runtime
     t = int(time.time() - t0)
@@ -903,10 +941,38 @@ def main(config_file):
     common.garbage_cleanup()
 
 
+def job(config_file,argv):
+
+     # Always do init
+    init(config_file)
+    
+    argv_str = ' '.join(argv)
+    print argv
+    job = json.loads(argv_str)
+    possibles = globals().copy()
+    possibles.update(locals())
+    
+    method = possibles.get(job["command"])
+    if not method:
+        raise Exception("Unknown command %s" % job["command"])
+    method(**job["args"])
+    
 if __name__ == '__main__':
 
-    if len(sys.argv) == 2:
-        main(sys.argv[1])
+    possible_steps = ["stereo","retry","triangulate","merge","mosaic","cloud","dsm"]
+    
+    if len(sys.argv) == 2 and sys.argv[1].endswith(".json"):
+        main(sys.argv[1],possible_steps)
+    elif len(sys.argv) > 2 and sys.argv[1] == "run":
+        unknown = False
+        for step in sys.argv[3:]:
+            if step not in possible_steps:
+                print "Unkown step required: %s" %step
+                unkown = True
+        if not unknown:
+            main(sys.argv[2],sys.argv[3:])
+    elif len(sys.argv) > 2 and sys.argv[1] == "job":
+        job(sys.argv[2],sys.argv[3:])
     else:
         print """
         Incorrect syntax, use:
@@ -914,5 +980,14 @@ if __name__ == '__main__':
 
           Launches the s2p pipeline. All the parameters, paths to input and
           output files, are defined in the json configuration file.
+
+         > %s run config.json [init stereo retry triangulate mosaic merge cloud dsm]
+          
+          Run specific steps of the s2p pipeline, while skipping the remaining ones.
+
+        > %s job config.json json_string
+
+          Run a specific job defined by a json string. This mode allows to run jobs returned
+          by the list_jobs running mode in configuration file.
         """ % sys.argv[0]
         sys.exit(1)

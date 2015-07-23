@@ -34,6 +34,9 @@ cfg['max_nb_threads'] = None
 # debug mode: no parallelisation, and more verbose logs
 cfg['debug'] = False
 
+# runnning mode: sequential, multiprocesing, list_jobs
+cfg['running_mode'] = "multiprocessing"
+
 # skip tiles for which a file "rectified_disp.tif" already exists
 cfg['skip_existing'] = False
 
