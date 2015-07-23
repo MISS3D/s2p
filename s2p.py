@@ -195,9 +195,17 @@ def process_pair_single_tile(out_dir, img1, rpc1, img2, rpc2, x=None, y=None,
     return
 
 def compute_dem_proxy(*args,**kwargs):
+    """
+    Proxy for the triangulation.compute_dem method so that it can be used with introspection.
+    
+    This proxy functions forwards args and kwargs to triangulation.compute_dem
+    """
     triangulation.compute_dem(*args,**kwargs)
 
 def show_progress(a):
+    """
+    Helper method display progress in multiprocessing mode
+    """
     show_progress.counter += 1
     if show_progress.counter > 1:
         print "Processed %d tiles" % show_progress.counter
@@ -206,9 +214,20 @@ def show_progress(a):
 
 
 def process_jobs(jobs,mode = "multiprocessing"):
+    """
+    This method allows to process an array of jobs represented as a dictionary.
+
+    Args:
+        jobs: Array fo jobs to run. Two main keys should be available:
+              - command is the name of the python method to call,
+              -  args is a dictionnary of arguments.
+        mode: Depending on the value:
+              - If mode is sequential, then jobs will be processed sequentially
+              - If mode is multiprocessing, then jobs will be multithreaded
+    """
     possibles = globals().copy()
     possibles.update(locals())
- # create pool with less workers than available cores
+    # create pool with less workers than available cores
     nb_workers = multiprocessing.cpu_count()
     if cfg['max_nb_threads']:
         nb_workers = min(nb_workers, cfg['max_nb_threads'])
@@ -246,9 +265,31 @@ def process_jobs(jobs,mode = "multiprocessing"):
 
         
 def list_all_tiles(x,y,w,h,tw,th,ov,out_dir):
+    """
+    List all tiles that will be processed by s2p.
+    
+    Args:
+        x, y, w, h: four integers defining the rectangular ROI in the reference
+            image. (x, y) is the top-left corner, and (w, h) are the dimensions
+            of the rectangle. The ROI may be as big as you want, as it will be
+            cutted into small tiles for processing.
+        tw, th: dimensions of the tiles
+        ov: width of overlapping bands between tiles
+        out_dir: base dir for tiles directories
+    
+    Returns
+        A tuple composed of:
+            A vector of dicitonaries describing each tile (tile_dir, x,y,w,h)
+            The computed tw,th,ov,ntx,nty parameters
+
+    """
+    
+    
     # ensure that the coordinates of the ROI are multiples of the zoom factor,
     # to avoid bad registration of tiles due to rounding problems.
-    z = cfg['subsampling_factor']
+    z = cf
+
+    g['subsampling_factor']
     x, y, w, h = common.round_roi_to_nearest_multiple(z, x, y, w, h)
     
     # TODO: automatically compute optimal size for tiles
@@ -280,12 +321,11 @@ def list_all_tiles(x,y,w,h,tw,th,ov,out_dir):
                                                         tw, th)
             tiles.append({"tile_dir" : tile_dir,"col" : col,"row" : row, "tw":tw, "th":th})
     
-    return (tiles,tw,th,ov)
+    return (tiles,tw,th,ov,ntx,nty)
         
-def get_single_tile_stereo_jobs(out_dir, img1, rpc1, img2, rpc2, tiles, tw=None, th=None,
-                 ov=None, cld_msk=None, roi_msk=None):
+def get_single_tile_stereo_jobs(out_dir, img1, rpc1, img2, rpc2, tiles, cld_msk=None, roi_msk=None):
      """
-    Computes a height map from a Pair of pushbroom images, using tiles.
+     Get an array of calls to process_pair_single_tiles
 
     Args:
         out_dir: path to the output directory
@@ -295,18 +335,13 @@ def get_single_tile_stereo_jobs(out_dir, img1, rpc1, img2, rpc2, tiles, tw=None,
         img2: path to the secondary image.
         rpc2: paths to the xml file containing the rpc coefficients of the
             secondary image
-        x, y, w, h: four integers defining the rectangular ROI in the reference
-            image. (x, y) is the top-left corner, and (w, h) are the dimensions
-            of the rectangle. The ROI may be as big as you want, as it will be
-            cutted into small tiles for processing.
-        tw, th: dimensions of the tiles
-        ov: width of overlapping bands between tiles
+        tiles: Vector of dictionaries describing all tiles
         cld_msk (optional): path to a gml file containing a cloud mask
         roi_msk (optional): path to a gml file containing a mask defining the
             area contained in the full image.
 
     Returns:
-        A list of calls to process_pair_single_tile method to be made
+        A list of dicionnaries describing calls to process_pair_single_tile to be made.
     """
      # The vector holding the list of jobs
      jobs = []
@@ -346,6 +381,14 @@ def get_single_tile_stereo_jobs(out_dir, img1, rpc1, img2, rpc2, tiles, tw=None,
      return jobs
 
 def compute_global_correction(tiles,out_dir):
+    """
+    Compute the global corecctions from all local corrections in tiles.
+
+    Args:
+        tiles: the vector of dictionaries describing tiles
+        out_dir: the output directory
+    """
+    
      # compute global pointing correction
     print 'Computing global pointing correction...'
 
@@ -357,8 +400,28 @@ def compute_global_correction(tiles,out_dir):
     np.savetxt('%s/pointing.txt' % out_dir, A_global)
 
 
-def get_single_tile_stereo_jobs_retry(out_dir, img1, rpc1, img2, rpc2, tiles, tw=None, th=None,
-                                ov=None, cld_msk=None, roi_msk=None):
+def get_single_tile_stereo_jobs_retry(out_dir, img1, rpc1, img2, rpc2, tiles, cld_msk=None, roi_msk=None):
+
+     """
+     Get an array of calls to process_pair_single_tile to be retried
+     once the local correction is guessed from neighbors or from global correction.
+
+    Args:
+        out_dir: path to the output directory
+        img1: path to the reference image.
+        rpc1: paths to the xml file containing the rpc coefficients of the
+            reference image
+        img2: path to the secondary image.
+        rpc2: paths to the xml file containing the rpc coefficients of the
+            secondary image
+        tiles: Vector of dictionaries describing all tiles
+        cld_msk (optional): path to a gml file containing a cloud mask
+        roi_msk (optional): path to a gml file containing a mask defining the
+            area contained in the full image.
+
+    Returns:
+        A list of dicionnaries describing calls to process_pair_single_tile to be made.
+     """
 
     jobs = []
 
@@ -401,6 +464,21 @@ def get_single_tile_stereo_jobs_retry(out_dir, img1, rpc1, img2, rpc2, tiles, tw
     return jobs
 
 def get_single_tile_triangulation_jobs(out_dir,rpc1,rpc2, tiles):
+     """
+     Get an array of calls to the compute_dem_proxy method.
+     
+     Args:
+        out_dir: path to the output directory
+        rpc1: paths to the xml file containing the rpc coefficients of the
+            reference image
+        rpc2: paths to the xml file containing the rpc coefficients of the
+            secondary image
+        tiles: the vector of dictionaries describing all tiles
+
+    Returns:
+        A list of dicionnaries describing calls to compute_dem_proxy to be made.
+     """
+    
 
     z = cfg['subsampling_factor']
     A_global = np.loadtxt('%s/pointing.txt' % out_dir)
@@ -449,6 +527,14 @@ def get_single_tile_triangulation_jobs(out_dir,rpc1,rpc2, tiles):
     return jobs
 
 def write_jobs(out_dir,filename,jobs):
+    """
+    Serialize a job array to the specified filename in the specified directory
+
+    Args:
+        out_dir: The output directory
+        filename: The filename to write to
+        jobs: The array of jobs to serialize
+    """
     f = open(os.path.join(out_dir,filename),'w')
     f.writelines(["%s\n" % json.dumps(job) for job in jobs])
     f.close()
@@ -942,7 +1028,13 @@ def main(config_file,steps=[]):
 
 
 def job(config_file,argv):
+    """
+    Run a single job describe by a json string
 
+    Args:
+        config_file: The global json configuration file
+        argv: the json string corresponding to the job to run
+    """
      # Always do init
     init(config_file)
     
@@ -981,7 +1073,7 @@ if __name__ == '__main__':
           Launches the s2p pipeline. All the parameters, paths to input and
           output files, are defined in the json configuration file.
 
-         > %s run config.json [init stereo retry triangulate mosaic merge cloud dsm]
+         > %s run config.json [stereo retry triangulate mosaic merge cloud dsm]
           
           Run specific steps of the s2p pipeline, while skipping the remaining ones.
 
