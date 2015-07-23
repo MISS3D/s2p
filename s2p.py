@@ -400,7 +400,7 @@ def compute_global_correction(tiles,out_dir):
     np.savetxt('%s/pointing.txt' % out_dir, A_global)
 
 
-def get_single_tile_stereo_jobs_retry(out_dir, img1, rpc1, img2, rpc2, tiles, cld_msk=None, roi_msk=None):
+def get_single_tile_stereo_jobs_retry(out_dir, img1, rpc1, img2, rpc2, tiles, ntx, nty, cld_msk=None, roi_msk=None):
 
      """
      Get an array of calls to process_pair_single_tile to be retried
@@ -415,6 +415,7 @@ def get_single_tile_stereo_jobs_retry(out_dir, img1, rpc1, img2, rpc2, tiles, cl
         rpc2: paths to the xml file containing the rpc coefficients of the
             secondary image
         tiles: Vector of dictionaries describing all tiles
+        ntx, nty: Number of tiles in each direction
         cld_msk (optional): path to a gml file containing a cloud mask
         roi_msk (optional): path to a gml file containing a mask defining the
             area contained in the full image.
@@ -427,6 +428,8 @@ def get_single_tile_stereo_jobs_retry(out_dir, img1, rpc1, img2, rpc2, tiles, cl
 
     A_global = np.loadtxt('%s/pointing.txt' % out_dir)
 
+    tile_dirs = [tile["tile_dir"] for tile in tiles]
+    
     for tile in tiles:
         tile_dir = tile["tile_dir"]
         col      = tile["col"]
@@ -440,7 +443,7 @@ def get_single_tile_stereo_jobs_retry(out_dir, img1, rpc1, img2, rpc2, tiles, cl
                     # estimate pointing correction matrix from neighbors, if it
                     # fails use A_global, then rerun the disparity map
                     # computation
-                A = pointing_accuracy.from_next_tiles(tiles, ntx, nty, j, i)
+                A = pointing_accuracy.from_next_tiles(tile_dirs, ntx, nty, j, i)
                 if A is None:
                     A = A_global
                 A_file = "%s/A.txt" %tile_dir
@@ -583,13 +586,12 @@ def process_pair(out_dir, img1, rpc1, img2, rpc2, x, y, w, h, tw=None, th=None,
     out = '%s/height_map.tif' % out_dir
     
     # list all tiles
-    (tiles,tw,th,ov) = list_all_tiles(x,y,w,h,tw,th,ov,out_dir)
+    (tiles,tw,th,ov,ntx,nty) = list_all_tiles(x,y,w,h,tw,th,ov,out_dir)
 
     if "stereo" in steps:
     
         # Get the list of tiles to process
-        jobs = get_single_tile_stereo_jobs(out_dir, img1, rpc1, img2, rpc2, tiles,
-                 ov, cld_msk, roi_msk)
+        jobs = get_single_tile_stereo_jobs(out_dir, img1, rpc1, img2, rpc2, tiles, cld_msk, roi_msk)
 
         # Process the stereo jobs
         print "Local stereo jobs ..."
@@ -608,8 +610,7 @@ def process_pair(out_dir, img1, rpc1, img2, rpc2, x, y, w, h, tw=None, th=None,
         compute_global_correction(tiles,out_dir)
 
         # Get the list of tile to retry
-        jobs = get_single_tile_stereo_jobs_retry(out_dir, img1, rpc1, img2, rpc2, tiles,
-                                                 ov, cld_msk, roi_msk)
+        jobs = get_single_tile_stereo_jobs_retry(out_dir, img1, rpc1, img2, rpc2, tiles, ntx, nty, cld_msk, roi_msk)
  
         # Process the stereo jobs
         print "Local stereo jobs (retry) ..."
