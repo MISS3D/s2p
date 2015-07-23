@@ -194,6 +194,8 @@ def process_pair_single_tile(out_dir, img1, rpc1, img2, rpc2, x=None, y=None,
 
     return
 
+def compute_dem_proxy(*args,**kwargs):
+    triangulation.compute_dem(*args,**kwargs)
 
 def show_progress(a):
     show_progress.counter += 1
@@ -203,6 +205,249 @@ def show_progress(a):
         print "Processed 1 tile"
 
 
+def process_jobs(jobs,mode = "multiprocessing"):
+    possibles = globals().copy()
+    possibles.update(locals())
+ # create pool with less workers than available cores
+    nb_workers = multiprocessing.cpu_count()
+    if cfg['max_nb_threads']:
+        nb_workers = min(nb_workers, cfg['max_nb_threads'])
+    pool = multiprocessing.Pool(nb_workers)
+
+    try:
+        
+        results = []
+        for job in jobs:
+            method = possibles.get(job["command"])
+            if not method:
+                raise Exception("Unknown command %s" % job["command"])
+            
+            if mode == "sequential":
+                method(**job["args"])
+            elif mode == "multiprocessing":
+                p = pool.apply_async(method,(),job["args"])
+                results.append(p)
+
+        if mode == "multiprocessing":
+                
+            for r in results:
+                try:
+                    r.get(3600)  # wait at most one hour per tile
+                except multiprocessing.TimeoutError:
+                    print "Timeout while computing tile "+str(r)
+
+    except KeyboardInterrupt:
+            pool.terminate()
+            sys.exit(1)
+
+    except common.RunFailure as e:
+        print "FAILED call: ", e.args[0]["command"]
+        print "output: ", e.args[0]["output"]
+
+        
+def list_all_tiles(x,y,w,h,tw,th,ov,out_dir):
+    # ensure that the coordinates of the ROI are multiples of the zoom factor,
+    # to avoid bad registration of tiles due to rounding problems.
+    z = cfg['subsampling_factor']
+    x, y, w, h = common.round_roi_to_nearest_multiple(z, x, y, w, h)
+    
+    # TODO: automatically compute optimal size for tiles
+    if tw is None and th is None and ov is None:
+        ov = z * 100
+        if w <= z * cfg['tile_size']:
+            tw = w
+        else:
+            tw = z * cfg['tile_size']
+        if h <= z * cfg['tile_size']:
+            th = h
+        else:
+            th = z * cfg['tile_size']
+    ntx = np.ceil(float(w - ov) / (tw - ov))
+    nty = np.ceil(float(h - ov) / (th - ov))
+    nt = ntx * nty
+
+    print 'tiles size: (%d, %d)' % (tw, th)
+    print 'total number of tiles: %d (%d x %d)' % (nt, ntx, nty)
+
+   
+    # process the tiles
+    # don't parallellize if in debug mode
+    tiles = []
+    
+    for row in np.arange(y, y + h - ov, th - ov):
+        for col in np.arange(x, x + w - ov, tw - ov):
+            tile_dir = '%s/tile_%06d_%06d_%04d_%04d' % (out_dir, col, row,
+                                                        tw, th)
+            tiles.append({"tile_dir" : tile_dir,"col" : col,"row" : row, "tw":tw, "th":th})
+    
+    return (tiles,tw,th,ov)
+        
+def get_single_tile_stereo_jobs(out_dir, img1, rpc1, img2, rpc2, tiles, tw=None, th=None,
+                 ov=None, cld_msk=None, roi_msk=None):
+     """
+    Computes a height map from a Pair of pushbroom images, using tiles.
+
+    Args:
+        out_dir: path to the output directory
+        img1: path to the reference image.
+        rpc1: paths to the xml file containing the rpc coefficients of the
+            reference image
+        img2: path to the secondary image.
+        rpc2: paths to the xml file containing the rpc coefficients of the
+            secondary image
+        x, y, w, h: four integers defining the rectangular ROI in the reference
+            image. (x, y) is the top-left corner, and (w, h) are the dimensions
+            of the rectangle. The ROI may be as big as you want, as it will be
+            cutted into small tiles for processing.
+        tw, th: dimensions of the tiles
+        ov: width of overlapping bands between tiles
+        cld_msk (optional): path to a gml file containing a cloud mask
+        roi_msk (optional): path to a gml file containing a mask defining the
+            area contained in the full image.
+
+    Returns:
+        A list of calls to process_pair_single_tile method to be made
+    """
+     # The vector holding the list of jobs
+     jobs = []
+     
+     for tile in tiles:
+         tile_dir = tile["tile_dir"]
+         col      = tile["col"]
+         row      = tile["row"]
+         tw       = tile["tw"]
+         th       = tile["th"]
+         # check if the tile is already done, or masked
+         if os.path.isfile('%s/rectified_disp.tif' % tile_dir):
+             if cfg['skip_existing']:
+                 print "stereo on tile %d %d already done, skip" % (col,
+                                                                           row)
+                 continue
+         if os.path.isfile('%s/this_tile_is_masked.txt' % tile_dir):
+             print "tile %d %d already masked, skip" % (col, row)
+             continue
+
+         new_job={"command" : "process_pair_single_tile",
+                  "args":  { "out_dir" : tile_dir,
+                             "img1" : img1,
+                             "rpc1" : rpc1,
+                             "img2" : img2,
+                             "rpc2" : rpc2,
+                             "x" : col,
+                             "y" : row,
+                             "w" : tw,
+                             "h" : th,
+                             "prv1" : None,
+                             "cld_msk" : cld_msk,
+                             "roi_msk" : roi_msk,
+                             "A": None}}
+         jobs.append(new_job)
+     
+     return jobs
+
+def compute_global_correction(tiles,out_dir):
+     # compute global pointing correction
+    print 'Computing global pointing correction...'
+
+    tile_dirs = []
+    for tile in tiles:
+        tile_dirs.append(tile["tile_dir"])
+    
+    A_global = pointing_accuracy.global_from_local(tile_dirs)
+    np.savetxt('%s/pointing.txt' % out_dir, A_global)
+
+
+def get_single_tile_stereo_jobs_retry(out_dir, img1, rpc1, img2, rpc2, tiles, tw=None, th=None,
+                                ov=None, cld_msk=None, roi_msk=None):
+
+    jobs = []
+
+    A_global = np.loadtxt('%s/pointing.txt' % out_dir)
+
+    for tile in tiles:
+        tile_dir = tile["tile_dir"]
+        col      = tile["col"]
+        row      = tile["row"]
+        tw       = tile["tw"]
+        th       = tile["th"]
+
+        if not os.path.isfile('%s/this_tile_is_masked.txt' % tile_dir):
+            if not os.path.isfile('%s/pointing.txt' % tile_dir):
+                print "%s retrying pointing corr..." % tile_dir
+                    # estimate pointing correction matrix from neighbors, if it
+                    # fails use A_global, then rerun the disparity map
+                    # computation
+                A = pointing_accuracy.from_next_tiles(tiles, ntx, nty, j, i)
+                if A is None:
+                    A = A_global
+                A_file = "%s/A.txt" %tile_dir
+                np.savetxt(A_file, A)
+                new_job={"command" : "process_pair_single_tile",
+                         "args" :
+                         {"tile_dir" : tile_dir,
+                          "img1" : img1,
+                          "rpc1" : rpc1,
+                          "img2" : img2,
+                          "rpc2" : rpc2,
+                          "col" : col,
+                          "row" : row,
+                          "tw" : tw,
+                          "th" : th,
+                          "prv1" : None,
+                          "cld_msk" : cld_msk,
+                          "roi_msk" : roi_msk,
+                          "A": None}}                  
+                jobs.append(new_job)
+    return jobs
+
+def get_single_tile_triangulation_jobs(out_dir,rpc1,rpc2, tiles):
+
+    z = cfg['subsampling_factor']
+    A_global = np.loadtxt('%s/pointing.txt' % out_dir)
+    
+    jobs = []
+    for tile in tiles:
+        tile_dir = tile["tile_dir"]
+        col      = tile["col"]
+        row      = tile["row"]
+        tw       = tile["tw"]
+        th       = tile["th"]
+        H1 = '%s/H_ref.txt' % tile_dir
+        H2 = '%s/H_sec.txt' % tile_dir
+        disp = '%s/rectified_disp.tif' % tile_dir
+        mask = '%s/rectified_mask.png' % tile_dir
+        rpc_err = '%s/rpc_err.tif' % tile_dir
+        height_map = '%s/height_map.tif' % tile_dir
+        
+     # check if the tile is already done, or masked
+        if os.path.isfile(height_map):
+            if cfg['skip_existing']:
+                print "triangulation on tile %d %d is done, skip" % (col,
+                                                                     row)
+                continue
+        if os.path.isfile('%s/this_tile_is_masked.txt' % tile):
+            print "tile %d %d already masked, skip" % (col, row)
+            continue
+
+        new_job={"command" : "compute_dem_proxy",
+                 "args" : { "out" : height_map,
+                            "x" : col,
+                            "y" : row,
+                            "w" : tw,
+                            "h": th,
+                            "z": z,
+                            "rpc1" : rpc1,
+                            "rpc2" : rpc2,
+                            "H1": H1,
+                            "H2": H2,
+                            "disp" : disp,
+                            "mask" : mask,
+                            "rpc_err": rpc_err,
+                            "A": A_global
+                            }}
+        jobs.append(new_job)
+    return jobs
+        
 def process_pair(out_dir, img1, rpc1, img2, rpc2, x, y, w, h, tw=None, th=None,
                  ov=None, cld_msk=None, roi_msk=None):
     """
@@ -229,195 +474,64 @@ def process_pair(out_dir, img1, rpc1, img2, rpc2, x, y, w, h, tw=None, th=None,
     Returns:
         path to height map tif file
     """
+
+    print "Processing pair:"
+    print "\t"+img1
+    print "\t"+img2
+    
     # create a directory for the experiment
     if not os.path.exists(out_dir):
         os.makedirs(out_dir)
 
     # duplicate stdout and stderr to log file
     tee.Tee('%s/stdout.log' % out_dir, 'w')
+    
+    # list all tiles
+    (tiles,tw,th,ov) = list_all_tiles(x,y,w,h,tw,th,ov,out_dir)
+    
+    # Get the list of tiles to process
+    jobs = get_single_tile_stereo_jobs(out_dir, img1, rpc1, img2, rpc2, tiles,
+                 ov, cld_msk, roi_msk)
 
-    # ensure that the coordinates of the ROI are multiples of the zoom factor,
-    # to avoid bad registration of tiles due to rounding problems.
-    z = cfg['subsampling_factor']
-    x, y, w, h = common.round_roi_to_nearest_multiple(z, x, y, w, h)
-
-    # TODO: automatically compute optimal size for tiles
-    if tw is None and th is None and ov is None:
-        ov = z * 100
-        if w <= z * cfg['tile_size']:
-            tw = w
-        else:
-            tw = z * cfg['tile_size']
-        if h <= z * cfg['tile_size']:
-            th = h
-        else:
-            th = z * cfg['tile_size']
-    ntx = np.ceil(float(w - ov) / (tw - ov))
-    nty = np.ceil(float(h - ov) / (th - ov))
-    nt = ntx * nty
-
-    print 'tiles size: (%d, %d)' % (tw, th)
-    print 'total number of tiles: %d (%d x %d)' % (nt, ntx, nty)
-
-    # create pool with less workers than available cores
-    nb_workers = multiprocessing.cpu_count()
-    if cfg['max_nb_threads']:
-        nb_workers = min(nb_workers, cfg['max_nb_threads'])
-    pool = multiprocessing.Pool(nb_workers)
-
-    # process the tiles
-    # don't parallellize if in debug mode
-    tiles = []
-    results = []
-    show_progress.counter = 0
-    print 'Computing disparity maps tile by tile...'
-    try:
-        for row in np.arange(y, y + h - ov, th - ov):
-            for col in np.arange(x, x + w - ov, tw - ov):
-                tile_dir = '%s/tile_%06d_%06d_%04d_%04d' % (out_dir, col, row,
-                                                            tw, th)
-                # check if the tile is already done, or masked
-                if os.path.isfile('%s/rectified_disp.tif' % tile_dir):
-                    if cfg['skip_existing']:
-                        print "stereo on tile %d %d already done, skip" % (col,
-                                                                           row)
-                        tiles.append(tile_dir)
-                        continue
-                if os.path.isfile('%s/this_tile_is_masked.txt' % tile_dir):
-                    print "tile %d %d already masked, skip" % (col, row)
-                    tiles.append(tile_dir)
-                    continue
-
-                # process the tile
-                if cfg['debug']:
-                    process_pair_single_tile(tile_dir, img1, rpc1, img2, rpc2,
-                                             col, row, tw, th, None, cld_msk,
-                                             roi_msk)
-                else:
-                    p = pool.apply_async(process_pair_single_tile,
-                                         args=(tile_dir, img1, rpc1, img2, rpc2,
-                                               col, row, tw, th, None, cld_msk,
-                                               roi_msk), callback=show_progress)
-                    results.append(p)
-                tiles.append(tile_dir)
-
-        for r in results:
-            try:
-                r.get(3600)  # wait at most one hour per tile
-            except multiprocessing.TimeoutError:
-                print "Timeout while computing tile "+str(r)
-
-    except KeyboardInterrupt:
-        pool.terminate()
-        sys.exit(1)
-
-    except common.RunFailure as e:
-        print "FAILED call: ", e.args[0]["command"]
-        print "output: ", e.args[0]["output"]
+    # Process the stereo jobs
+    print "Local stereo jobs ..."
+    if cfg["debug"]:
+        process_jobs(jobs,mode="sequential")
+    else:
+        process_jobs(jobs,mode="multiprocessing")
 
 
-    # compute global pointing correction
-    print 'Computing global pointing correction...'
-    A_global = pointing_accuracy.global_from_local(tiles)
-    np.savetxt('%s/pointing.txt' % out_dir, A_global)
+    # Compute the global correction
+    compute_global_correction(tiles,out_dir)
 
-    # Check if all tiles were computed
-    # The only cause of a tile failure is a lack of sift matches, which breaks
-    # the pointing correction step. Thus it is enough to check if the pointing
-    # correction matrix was computed.
-    results = []
-    for i, row in enumerate(np.arange(y, y + h - ov, th - ov)):
-        for j, col in enumerate(np.arange(x, x + w - ov, tw - ov)):
-            tile_dir = '%s/tile_%06d_%06d_%04d_%04d' % (out_dir, col, row, tw,
-                                                        th)
-            if not os.path.isfile('%s/this_tile_is_masked.txt' % tile_dir):
-                if not os.path.isfile('%s/pointing.txt' % tile_dir):
-                    print "%s retrying pointing corr..." % tile_dir
-                    # estimate pointing correction matrix from neighbors, if it
-                    # fails use A_global, then rerun the disparity map
-                    # computation
-                    A = pointing_accuracy.from_next_tiles(tiles, ntx, nty, j, i)
-                    if A is None:
-                        A = A_global
-                    if cfg['debug']:
-                        process_pair_single_tile(tile_dir, img1, rpc1, img2,
-                                                 rpc2, col, row, tw, th, None,
-                                                 cld_msk, roi_msk, A)
-                    else:
-                        p = pool.apply_async(process_pair_single_tile,
-                                             args=(tile_dir, img1, rpc1, img2,
-                                                   rpc2, col, row, tw, th, None,
-                                                   cld_msk, roi_msk, A),
-                                             callback=show_progress)
-                        results.append(p)
+    # Get the list of tile to retry
+    jobs = get_single_tile_stereo_jobs_retry(out_dir, img1, rpc1, img2, rpc2, tiles,
+                                             ov, cld_msk, roi_msk)
 
-    try:
-        for r in results:
-            try:
-                r.get(3600)  # wait at most one hour per tile
-            except multiprocessing.TimeoutError:
-                print "Timeout while computing tile "+str(r)  
+    # Process the stereo jobs
+    print "Local stereo jobs (retry) ..."
+    if cfg["debug"]:
+        process_jobs(jobs,mode="sequential")
+    else:
+        process_jobs(jobs,mode="multiprocessing")
 
-    except KeyboardInterrupt:
-        pool.terminate()
-        sys.exit(1)
+    
+    jobs = get_single_tile_triangulation_jobs(out_dir,rpc1, rpc2, tiles)
+        
 
-    except common.RunFailure as e:
-        print "FAILED call: ", e.args[0]["command"]
-        print "output: ", e.args[0]["output"]
+    # Process the stereo jobs
+    print "Triangulation jobs ..."
+    if cfg["debug"]:
+        process_jobs(jobs,mode="sequential")
+    else:
+        process_jobs(jobs,mode="multiprocessing")
 
 
-    # triangulation
-    processes = []
-    results = []
-    show_progress.counter = 0
-    print 'Computing height maps tile by tile...'
-    try:
-        for row in np.arange(y, y + h - ov, th - ov):
-            for col in np.arange(x, x + w - ov, tw - ov):
-                tile = '%s/tile_%06d_%06d_%04d_%04d' % (out_dir, col, row, tw, th)
-                H1 = '%s/H_ref.txt' % tile
-                H2 = '%s/H_sec.txt' % tile
-                disp = '%s/rectified_disp.tif' % tile
-                mask = '%s/rectified_mask.png' % tile
-                rpc_err = '%s/rpc_err.tif' % tile
-                height_map = '%s/height_map.tif' % tile
-
-                # check if the tile is already done, or masked
-                if os.path.isfile(height_map):
-                    if cfg['skip_existing']:
-                        print "triangulation on tile %d %d is done, skip" % (col,
-                                                                             row)
-                        continue
-                if os.path.isfile('%s/this_tile_is_masked.txt' % tile):
-                    print "tile %d %d already masked, skip" % (col, row)
-                    continue
-
-                # process the tile
-                if cfg['debug']:
-                    triangulation.compute_dem(height_map, col, row, tw, th, z,
-                                              rpc1, rpc2, H1, H2, disp, mask,
-                                              rpc_err, A_global)
-                else:
-                    p = pool.apply_async(triangulation.compute_dem,
-                                         args=(height_map, col, row, tw, th, z,
-                                               rpc1, rpc2, H1, H2, disp, mask,
-                                               rpc_err, A_global),
-                                         callback=show_progress)
-                    processes.append(p)
-        for p in processes:
-            try:
-                results.append(p.get(3600))  # wait at most one hour per tile
-            except multiprocessing.TimeoutError:
-                print "Timeout while computing tile "+str(r)
-
-    except KeyboardInterrupt:
-        pool.terminate()
-        sys.exit(1)
-
+    print "Finalize ..."
     # tiles composition
+    z = cfg['subsampling_factor']
     out = '%s/height_map.tif' % out_dir
-    tmp = ['%s/height_map.tif' % t for t in tiles]
+    tmp = ['%s/height_map.tif' % t["tile_dir"] for t in tiles]
     if not os.path.isfile(out) or not cfg['skip_existing']:
         print "Mosaicing tiles with %s..." % cfg['mosaic_method']
         if cfg['mosaic_method'] == 'gdal':
