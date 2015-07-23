@@ -481,7 +481,6 @@ def get_single_tile_triangulation_jobs(out_dir,rpc1,rpc2, tiles):
         A list of dicionnaries describing calls to compute_dem_proxy to be made.
     """
     z = cfg['subsampling_factor']
-    A_global = np.loadtxt('%s/pointing.txt' % out_dir)
     
     jobs = []
     for tile in tiles:
