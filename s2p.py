@@ -966,7 +966,7 @@ def init(config_file):
         srtm.get_srtm_tile(s, cfg['srtm_dir'])
     
             
-def main(config_file,steps=[]):
+def main(config_file,steps=[],running_mode=None):
     """
     Launches s2p with the parameters given by a json file.
 
@@ -979,7 +979,11 @@ def main(config_file,steps=[]):
     
     # Always do init
     init(config_file)
-   
+
+    # override running mode if needed
+    if running_mode is not None:
+        cfg['running_mode']=running_mode
+    
     # height map
     if len(cfg['images']) == 2:
         height_map = process_pair(cfg['out_dir'], cfg['images'][0]['img'],
@@ -1053,14 +1057,21 @@ if __name__ == '__main__':
     
     if len(sys.argv) == 2 and sys.argv[1].endswith(".json"):
         main(sys.argv[1],possible_steps)
-    elif len(sys.argv) > 2 and sys.argv[1] == "run":
+    elif len(sys.argv) > 2 and sys.argv[1].startswith("run"):
         unknown = False
         for step in sys.argv[3:]:
             if step not in possible_steps:
                 print "Unkown step required: %s" %step
                 unkown = True
         if not unknown:
-            main(sys.argv[2],sys.argv[3:])
+            if sys.argv[1].endswith("_seq"):
+                main(sys.argv[2],sys.argv[3:],"sequential")
+            elif sys.argv[1].endswith("_mproc"):
+                main(sys.argv[2],sys.argv[3:],"multiprocessing")
+            elif sys.argv[1].endswith("_list"):
+                main(sys.argv[2],sys.argv[3:],"list_jobs")
+            else:
+                main(sys.argv[2],sys.argv[3:])
     elif len(sys.argv) > 2 and sys.argv[1] == "job":
         job(sys.argv[2],sys.argv[3:])
     else:
@@ -1071,7 +1082,7 @@ if __name__ == '__main__':
           Launches the s2p pipeline. All the parameters, paths to input and
           output files, are defined in the json configuration file.
 
-         > %s run config.json [stereo retry triangulate mosaic merge cloud dsm]
+         > %s run[_seq _mproc _list] config.json [stereo retry triangulate mosaic merge cloud dsm]
           
           Run specific steps of the s2p pipeline, while skipping the remaining ones.
 
