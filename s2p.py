@@ -535,7 +535,8 @@ def write_jobs(out_dir,filename,jobs):
         jobs: The array of jobs to serialize
     """
     f = open(os.path.join(out_dir,filename),'w')
-    f.writelines(["%s\n" % json.dumps(job) for job in jobs])
+    for job in jobs:
+        f.write(json.dumps(job)+"\n")
     f.close()
     
     
