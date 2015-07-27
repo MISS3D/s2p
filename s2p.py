@@ -442,7 +442,10 @@ def get_single_tile_stereo_jobs_retry(out_dir, img1, rpc1, img2, rpc2, tiles, nt
                     # estimate pointing correction matrix from neighbors, if it
                     # fails use A_global, then rerun the disparity map
                     # computation
-                A = pointing_accuracy.from_next_tiles(tile_dirs, ntx, nty, j, i)
+
+                # Not implemented yet, use None instead
+                # A = pointing_accuracy.from_next_tiles(tile_dirs, ntx, nty, j, i)
+                A = None
                 if A is None:
                     A = A_global
                 A_file = "%s/A.txt" %tile_dir
