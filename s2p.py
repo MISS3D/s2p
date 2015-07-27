@@ -1076,7 +1076,10 @@ if __name__ == '__main__':
             else:
                 main(sys.argv[2],sys.argv[3:])
     elif len(sys.argv) > 2 and sys.argv[1] == "job":
-        job(sys.argv[2],sys.argv[3:])
+        try:
+            job(sys.argv[2],sys.argv[3:])
+        except e:
+            print "Job failed with the following error: "+str(e)
     else:
         print """
         Incorrect syntax, use:
