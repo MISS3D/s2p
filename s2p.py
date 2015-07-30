@@ -264,6 +264,8 @@ def process_jobs(jobs,mode = "multiprocessing"):
         print "FAILED call: ", e.args[0]["command"]
         print "output: ", e.args[0]["output"]
 
+    except Exception as e:
+        print "Exception raised: "+str(e)
         
 def list_all_tiles(x,y,w,h,tw,th,ov,out_dir):
     """
@@ -452,7 +454,7 @@ def get_single_tile_stereo_jobs_retry(out_dir, img1, rpc1, img2, rpc2, tiles, nt
                 np.savetxt(A_file, A)
                 new_job={"command" : "process_pair_single_tile",
                          "args" :
-                         {"tile_dir" : tile_dir,
+                         {"out_dir" : tile_dir,
                           "img1" : img1,
                           "rpc1" : rpc1,
                           "img2" : img2,
