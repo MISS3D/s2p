@@ -282,7 +282,7 @@ def list_all_tiles(x,y,w,h,tw,th,ov,out_dir):
     
     Returns
         A tuple composed of:
-            A vector of dicitonaries describing each tile (tile_dir, x,y,w,h)
+            A vector of dictionaries describing each tile (tile_dir, x,y,w,h)
             The computed tw,th,ov,ntx,nty parameters
 
     """
@@ -714,10 +714,37 @@ def process_triplet(out_dir, img1, rpc1, img2, rpc2, img3, rpc3, x=None, y=None,
                                     roi_msk,steps)
 
     height_map = '%s/height_map.tif' % out_dir
-    
+
+
     if "merge" in steps:
-        # merge the two height maps
-        fusion.merge(height_map_left, height_map_right, thresh, height_map)
+        (tiles,tw,th,ov,ntx,nty) = list_all_tiles(x,y,w,h,tile_w,tile_h,overlap,out_dir)
+
+    
+        left_tiles = ['%s/tile_%06d_%06d_%04d_%04d/height_map.tif' % (out_dir_left,t["col"],t["row"],t["tw"],t["th"]) for t in tiles]
+        right_tiles = ['%s/tile_%06d_%06d_%04d_%04d/height_map.tif' % (out_dir_right,t["col"],t["row"],t["tw"],t["th"]) for t in tiles]
+        merged_tiles = []
+
+        print "Merging tile by tile ..."
+        for left,right in zip(left_tiles,right_tiles):
+            print left,right
+            if not os.path.isfile(left) and os.path.isfile(right):
+                merged_tiles.append(right)
+            elif not os.path.isfile(right) and os.path.isfile(left):
+                merged_tiles.append(left)
+            else:
+                current_merged_tile = left[:-4]+"_merged.tif"
+                fusion.merge(left, right, thresh, current_merged_tile)
+                merged_tiles.append(current_merged_tile)
+    
+        print "Mosaic merged height maps ..."
+        # tiles composition
+        z = cfg['subsampling_factor']
+        if not os.path.isfile(height_map) or not cfg['skip_existing']:
+            print "Mosaicing tiles with %s..." % cfg['mosaic_method']
+            if cfg['mosaic_method'] == 'gdal':
+                tile_composer.mosaic_gdal(height_map, w/z, h/z, merged_tiles, tw/z, th/z, ov/z)
+            else:
+                tile_composer.mosaic(height_map, w/z, h/z, merged_tiles, tw/z, th/z, ov/z)
 
     common.garbage_cleanup()
     return height_map
