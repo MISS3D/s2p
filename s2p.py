@@ -719,6 +719,7 @@ def process_triplet(out_dir, img1, rpc1, img2, rpc2, img3, rpc3, x=None, y=None,
     if "merge" in steps:
         (tiles,tw,th,ov,ntx,nty) = list_all_tiles(x,y,w,h,tile_w,tile_h,overlap,out_dir)
 
+        im2_offset = fusion.estimate_height_registration(height_map_left,height_map_right)
     
         left_tiles = ['%s/tile_%06d_%06d_%04d_%04d/height_map.tif' % (out_dir_left,t["col"],t["row"],t["tw"],t["th"]) for t in tiles]
         right_tiles = ['%s/tile_%06d_%06d_%04d_%04d/height_map.tif' % (out_dir_right,t["col"],t["row"],t["tw"],t["th"]) for t in tiles]
@@ -733,7 +734,7 @@ def process_triplet(out_dir, img1, rpc1, img2, rpc2, img3, rpc3, x=None, y=None,
                 merged_tiles.append(left)
             else:
                 current_merged_tile = left[:-4]+"_merged.tif"
-                fusion.merge(left, right, thresh, current_merged_tile)
+                fusion.merge(left, right, im2_offset, thresh, current_merged_tile)
                 merged_tiles.append(current_merged_tile)
     
         print "Mosaic merged height maps ..."
