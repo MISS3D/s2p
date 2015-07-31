@@ -729,9 +729,9 @@ def process_triplet(out_dir, img1, rpc1, img2, rpc2, img3, rpc3, x=None, y=None,
         for left,right in zip(left_tiles,right_tiles):
             current_merged_tile = left[:-4]+"_merged.tif"
             if not os.path.isfile(left) and os.path.isfile(right):
-                run("cp %s %s", %(right,current_merged_tile))
+                run("cp %s %s"  %(right,current_merged_tile))
             elif not os.path.isfile(right) and os.path.isfile(left):
-                run("cp %s %s",%(left,current_merged_tile))
+                run("cp %s %s" %(left,current_merged_tile))
             elif not os.path.isfile(left) and not os.path.isfile(right):
                 continue
             else:
