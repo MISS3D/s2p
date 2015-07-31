@@ -1113,7 +1113,7 @@ if __name__ == '__main__':
     elif len(sys.argv) > 2 and sys.argv[1] == "job":
         try:
             job(sys.argv[2],sys.argv[3:])
-        except e:
+        except Exception as e:
             print "Job failed with the following error: "+str(e)
     else:
         print """
