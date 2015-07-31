@@ -727,18 +727,17 @@ def process_triplet(out_dir, img1, rpc1, img2, rpc2, img3, rpc3, x=None, y=None,
 
         print "Merging tile by tile ..."
         for left,right in zip(left_tiles,right_tiles):
+            current_merged_tile = left[:-4]+"_merged.tif"
             if not os.path.isfile(left) and os.path.isfile(right):
-                merged_tiles.append(right)
+                run("cp %s %s", %(right,current_merged_tile))
             elif not os.path.isfile(right) and os.path.isfile(left):
-                merged_tiles.append(left)
+                run("cp %s %s",%(left,current_merged_tile))
             elif not os.path.isfile(left) and not os.path.isfile(right):
                 continue
             else:
-                current_merged_tile = left[:-4]+"_merged.tif"
-
                 if not os.path.isfile(current_merged_tile) or not cfg['skip_existing']:
                     fusion.merge(left, right, im2_offset, thresh, current_merged_tile)
-                merged_tiles.append(current_merged_tile)
+            merged_tiles.append(current_merged_tile)
     
         print "Mosaic merged height maps ..."
         # tiles composition
