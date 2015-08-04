@@ -603,8 +603,7 @@ def process_pair(out_dir, img1, rpc1, img2, rpc2, x, y, w, h, tw=None, th=None,
             process_jobs(jobs,mode="multiprocessing")
         elif cfg["running_mode"] == "list_jobs":
             print "Jobs written to "+os.path.join(out_dir,"stereo.jobs")
-            for job in jobs:
-                write_jobs(out_dir,"stereo.jobs",jobs)
+            write_jobs(out_dir,"stereo.jobs",jobs)
 
 
     if "retry" in steps:
@@ -622,8 +621,7 @@ def process_pair(out_dir, img1, rpc1, img2, rpc2, x, y, w, h, tw=None, th=None,
             process_jobs(jobs,mode="multiprocessing")
         elif cfg["running_mode"] == "list_jobs":
             print "Jobs written to "+os.path.join(out_dir,"retry.jobs")
-            for job in jobs:
-                write_jobs(out_dir,"retry.jobs",jobs)
+            write_jobs(out_dir,"retry.jobs",jobs)
 
     if "triangulate" in steps:
         jobs = get_single_tile_triangulation_jobs(out_dir,rpc1, rpc2, tiles)
@@ -637,8 +635,7 @@ def process_pair(out_dir, img1, rpc1, img2, rpc2, x, y, w, h, tw=None, th=None,
             process_jobs(jobs,mode="multiprocessing")
         elif cfg["running_mode"] == "list_jobs":
             print "Jobs written to "+os.path.join(out_dir,"triangulate.jobs")
-            for job in jobs:
-                write_jobs(out_dir,"triangulate.jobs",jobs)
+            write_jobs(out_dir,"triangulate.jobs",jobs)
 
     if "mosaic" in steps:
         print "Mosaic height maps ..."
