@@ -1,7 +1,7 @@
-# Copyright (C) 2013, Carlo de Franchis <carlo.de-franchis@cmla.ens-cachan.fr>
-# Copyright (C) 2013, Gabriele Facciolo <facciolo@cmla.ens-cachan.fr>
-# Copyright (C) 2013, Enric Meinhardt <enric.meinhardt@cmla.ens-cachan.fr>
-# Copyright (C) 2013, Julien Michel <julien.michel@cnes.fr>
+# Copyright (C) 2015, Carlo de Franchis <carlo.de-franchis@cmla.ens-cachan.fr>
+# Copyright (C) 2015, Gabriele Facciolo <facciolo@cmla.ens-cachan.fr>
+# Copyright (C) 2015, Enric Meinhardt <enric.meinhardt@cmla.ens-cachan.fr>
+# Copyright (C) 2015, Julien Michel <julien.michel@cnes.fr>
 
 import numpy as np
 import common
@@ -55,30 +55,48 @@ def estimate_height_registration(im1,im2):
 
     return v
     
-def merge(im1, im2, im2_offset, thresh, out):
+def merge(im1, im2, im2_offset, thresh, out, conservative=False):
     """
     Args:
         im1, im2: paths to the two input images
         im2_offset: registration offset
         thresh: distance threshold on the intensity values
         out: path to the output image
+        conservative (optional, default is False): if True, keep only the
+            pixels where the two height map agree
 
     This function merges two images. They are supposed to be two height maps,
     sampled on the same grid. If a pixel has a valid height (ie not inf) in
-    only one of the two maps, then we keep this height. When two heights are
-    available, if they differ less than the threshold we take the mean, if not
-    we discard the pixel (ie assign NAN to the output pixel).
+    only one of the two maps, then we keep this height (if the 'conservative'
+    option is set to False). When two heights are available, if they differ
+    less than the threshold we take the mean, if not we discard the pixel (ie
+    assign NAN to the output pixel).
     """
-    # then merge
-    # the following plambda expression implements:
-    # if isfinite x
-    #   if isfinite y
-    #     if fabs(x - y) < t
-    #       return (x+y)/2
-    #     return nan
-    #   return x
-    # return y
-    common.run("""
+    if conservative:
+        # then merge
+        # the following plambda expression implements:
+        # if isfinite x
+        #   if isfinite y
+        #     if fabs(x - y) < t
+        #       return (x+y)/2
+        #     return nan
+        #   return nan
+        # return nan
+        common.run("""
+            plambda %s %s "x isfinite y isfinite x y - fabs %f < x y + 2 / nan if nan
+            if nan if" -o %s
+            """ % ( im1, im2, thresh, out))
+    else:
+        # then merge
+        # the following plambda expression implements:
+        # if isfinite x
+        #   if isfinite y
+        #     if fabs(x - y) < t
+        #       return (x+y)/2
+        #     return nan
+        #   return x
+        # return y
+        common.run("""
         plambda %s %s "x isfinite y isfinite x y - fabs %f < x y + %f + 2 / nan if x
-        if y if" -o %s
+            if y if" -o %s
         """ % ( im1, im2, thresh, im2_offset, out))

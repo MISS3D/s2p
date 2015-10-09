@@ -736,7 +736,7 @@ def process_triplet(out_dir, img1, rpc1, img2, rpc2, img3, rpc3, x=None, y=None,
                 continue
             else:
                 if not os.path.isfile(current_merged_tile) or not cfg['skip_existing']:
-                    fusion.merge(left, right, im2_offset, thresh, current_merged_tile)
+                    fusion.merge(left, right, im2_offset, thresh, current_merged_tile,conservative=cfg['fusion_conservative'])
             merged_tiles.append(current_merged_tile)
     
         print "Mosaic merged height maps ..."
@@ -1036,6 +1036,11 @@ def main(config_file,steps=[],running_mode=None):
                               cfg['fusion_thresh'], None, None, None, None,
                                      cfg['images'][0]['cld'], cfg['images'][0]['roi'],steps)
 
+    # also copy the RPC's
+    for i in range(len(cfg['images'])):
+        from shutil import copy2
+        copy2(cfg['images'][i]['rpc'], cfg['out_dir'])
+
     # point cloud
     if "cloud" in steps:
         generate_cloud(cfg['out_dir'], height_map, cfg['images'][0]['rpc'],
@@ -1128,5 +1133,5 @@ if __name__ == '__main__':
 
           Run a specific job defined by a json string. This mode allows to run jobs returned
           by the list_jobs running mode in configuration file.
-        """ % sys.argv[0]
+        """ % (sys.argv[0],sys.argv[0],sys.argv[0])
         sys.exit(1)

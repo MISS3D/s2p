@@ -69,8 +69,8 @@ cfg['n_gcp_per_axis'] = 5
 cfg['epipolar_thresh'] = 0.5
 
 # stereo matching algorithm: 'tvl1', 'msmw', 'hirschmuller08',
-# hirschmuller08_laplacian', 'sgbm'
-cfg['matching_algorithm'] = 'sgbm'
+# hirschmuller08_laplacian', 'sgbm', 'mgm'
+cfg['matching_algorithm'] = 'mgm'
 
 # blur pleiades images before stereo matching
 cfg['use_pleiades_unsharpening'] = True
@@ -81,7 +81,7 @@ cfg['pointing_correction_rois_mode'] = 'automatic'
 
 # method used to compute the disparity range: "sift", "srtm" or
 # "wider_sift_srtm"
-cfg['disp_range_method'] = "sift"
+cfg['disp_range_method'] = "wider_sift_srtm"
 cfg['disp_range_srtm_low_margin'] = -10
 cfg['disp_range_srtm_high_margin'] = +100
 
@@ -95,6 +95,11 @@ cfg['msk_erosion'] = 2
 # threshold (in meters) used for the fusion of two dems in triplet processing
 # It should be adapted to the zoom factor
 cfg['fusion_thresh'] = 3
+
+# set to True to keep only the pixels were the two height maps have a valid
+# height. If False, pixels with a valid height in only one of the two maps will
+# be kept.
+cfg['fusion_conservative'] = False
 
 # binary used to paste together the altitude maps of each tile
 cfg['mosaic_method'] = 'piio'
