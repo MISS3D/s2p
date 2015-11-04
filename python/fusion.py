@@ -77,26 +77,27 @@ def merge(im1, im2, im2_offset, thresh, out, conservative=False):
         # the following plambda expression implements:
         # if isfinite x
         #   if isfinite y
-        #     if fabs(x - y) < t
-        #       return (x+y)/2
+        #     if fabs(x - y - offset) < t
+        #       return (x + y + offset)/2
         #     return nan
         #   return nan
         # return nan
         common.run("""
-            plambda %s %s "x isfinite y isfinite x y - fabs %f < x y + 2 / nan if nan
+            plambda %s %s "x isfinite y isfinite x y - %f - fabs %f < x y + %f + 2 / nan if nan
             if nan if" -o %s
-            """ % ( im1, im2, thresh, out))
+            """ % ( im1, im2, im2_offset, thresh, im2_offset, out))
     else:
         # then merge
         # the following plambda expression implements:
         # if isfinite x
         #   if isfinite y
-        #     if fabs(x - y) < t
-        #       return (x+y)/2
+        #     if fabs(x - y - offset) < t
+        #       return (x + y + offset) / 2
         #     return nan
         #   return x
-        # return y
+        # return y + offset
+        
         common.run("""
-        plambda %s %s "x isfinite y isfinite x y - fabs %f < x y + %f + 2 / nan if x
-            if y if" -o %s
-        """ % ( im1, im2, thresh, im2_offset, out))
+        plambda %s %s "x isfinite y isfinite x y - %f - fabs %f < x y + %f + 2 / nan if x
+            if y %f + if" -o %s
+        """ % ( im1, im2, im2_offset, thresh, im2_offset, im2_offset, out))
