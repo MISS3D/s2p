@@ -320,6 +320,14 @@ def rectify_pair(im1, im2, rpc1, rpc2, x, y, w, h, out1, out2, A=None,
     disp_m, disp_M = disparity_range(rpc1, rpc2, x, y, w, h, H1, H2,
                                      sift_matches, A)
 
+    # compute rectifying homographies for non-epipolar mode (rectify the secondary tile only)
+    if cfg['epipolar_rectification'] == False:
+        H1_inv = np.linalg.inv(H1)
+        H1 = np.dot(H1_inv,H1)
+        H1 = np.dot(common.matrix_translation(-x, -y),H1)
+        H2 = np.dot(H1_inv,H2)
+        H2 = np.dot(common.matrix_translation(-x, -y),H2)
+
     # compute output images size
     roi = [[x, y], [x+w, y], [x+w, y+h], [x, y+h]]
     pts1 = common.points_apply_homography(H1, roi)
@@ -342,5 +350,17 @@ def rectify_pair(im1, im2, rpc1, rpc2, x, y, w, h, out1, out2, A=None,
         H2 = np.dot(Z, H2)
         disp_m = np.floor(disp_m / cfg['subsampling_factor'])
         disp_M = np.ceil(disp_M / cfg['subsampling_factor'])
+
+    if cfg['epipolar_rectification'] == False:
+        if cfg['disp_min'] is not None:
+            disp_m = cfg['disp_min']
+        if cfg['disp_max'] is not None:
+            disp_M = cfg['disp_max']
+
+        pts_in = [[0, 0], [disp_m, 0], [disp_M, 0]]
+        pts_out = common.points_apply_homography(H1_inv,
+                                                 pts_in)
+        disp_m = pts_out[1,:] - pts_out[0,:]
+        disp_M = pts_out[2,:] - pts_out[0,:]
 
     return H1, H2, disp_m, disp_M

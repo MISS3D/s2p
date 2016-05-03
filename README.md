@@ -97,6 +97,15 @@ the 'bin' folder:
 
     ln -s PATH_TO_YOUR_MICMAC_DIR bin/micmac
 
+### The NASA Ames Stereo Pipeline (ASP) (optional)
+### http://ti.arc.nasa.gov/tech/asr/intelligent-robotics/ngt/stereo/
+
+If you want to use ASP for the stereo matching step, you must install it (or
+download binaries) and add the bin folder (containing the executables 'stereo_corr',
+'stereo_rfne' and 'stereo_fltr') to PATH environment variable:
+
+    export PATH=PATH_TO_YOUR_ASP_BIN_DIR:$PATH
+
 ### Old dependencies. Not required anymore
 
 Here are the instuctions to install them in a local folder, without root

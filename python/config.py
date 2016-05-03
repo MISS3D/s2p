@@ -66,6 +66,9 @@ cfg['epipolar_thresh'] = 0.5
 # hirschmuller08_laplacian', 'sgbm', 'mgm'
 cfg['matching_algorithm'] = 'mgm'
 
+# switch to False to disable epipolar rectification and rectify the secondary tile only
+cfg['epipolar_rectification'] = True
+
 # blur pleiades images before stereo matching
 cfg['use_pleiades_unsharpening'] = True
 
