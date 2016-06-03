@@ -147,10 +147,14 @@ int compare (const void * a, const void * b)
 
 double weight(Position pos, Position center_pos)
 {
+    double eps=10e-3;
+    
     double d = pow(center_pos.x-pos.x,2.0)+pow(center_pos.y-pos.y,2.0);
     d = sqrt(d);
+    if (d>=3)
+	fprintf(stderr,"ERROR : dist too high : %f\n",d);
     
-    return 1.0/d;
+    return 1.0/(d+eps);
     
 }
 
@@ -204,6 +208,7 @@ static void add_height_to_images(struct images *x, int i, int j, float v, Positi
 		x->cnt[k] += 1;
 	    }
 	}
+	break;
     }
 }
 
@@ -218,10 +223,8 @@ static void synth_heights(struct images *x, int i, int j, Position center_pos, u
 	    if (x->cnt[k])
 	    {
 		float sum=0.;
-		for(int i=0;i<x->cnt[k];i++)
-		{
-		    sum += x->heights[k][i];
-		}
+		for(int t=0;t<x->cnt[k];t++)
+		    sum += x->heights[k][t];
 		x->pixel_value[k] = sum / ( (float) x->cnt[k]);
 	    }
 	}
@@ -231,10 +234,10 @@ static void synth_heights(struct images *x, int i, int j, Position center_pos, u
 	    if (x->cnt[k])
 	    {
 		double sum1=0.,sumC=0.;
-		for(int i=0;i<x->cnt[k];i++)
+		for(int t=0;t<x->cnt[k];t++)
 		{
-		    sum1 += (double) x->heights[k][i];
-		    sumC += pow( (double) x->heights[k][i],2.0);
+		    sum1 += (double) x->heights[k][t];
+		    sumC += pow( (double) x->heights[k][t],2.0);
 		}
 		double m1 = sum1 / ( (double) x->cnt[k]);
 		double mc = sumC / ( (double) x->cnt[k]);
@@ -283,11 +286,11 @@ static void synth_heights(struct images *x, int i, int j, Position center_pos, u
 			uint64_t kt = (uint64_t) x->w * (j+jj) + i+ii;
 			if (x->cnt[kt])
 			{
-			    for(int i=0;i<x->cnt[kt];i++)
+			    for(int t=0;t<x->cnt[kt];t++)
 			    {
-				w = weight(x->pos[kt][i],center_pos);
+				w = weight(x->pos[kt][t],center_pos);
 				sum += w;
-				weighted_moy += w * ( (double) x->heights[kt][i] );
+				weighted_moy += w * ( (double) x->heights[kt][t] );
 			    }
 			}
 		    }
