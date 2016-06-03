@@ -134,10 +134,18 @@ def process_tile_pair(tile_info, pair_id):
 
     out_dir = os.path.join(tile_dir, 'pair_%d' % pair_id)
 
+    
+    
     A_global = os.path.join(cfg['out_dir'],
                             'global_pointing_pair_%d.txt' % pair_id)
 
     print 'processing tile %d %d...' % (col, row)
+
+    # check that the tile is not masked
+    if os.path.isfile(os.path.join(out_dir, 'this_tile_is_masked.txt')):
+        print 'tile %s already masked, skip' % out_dir
+        return
+    
     # rectification
     if (cfg['skip_existing'] and
         os.path.isfile(os.path.join(out_dir, 'rectified_ref.tif')) and
@@ -196,7 +204,11 @@ def process_tile(tile_info):
             process_tile_pair(tile_info, pair_id)
 
         # finalization
-        height_maps = [os.path.join(tile_dir, 'pair_%d' % i, 'height_map.tif') for i in range(1, nb_pairs + 1)]
+        height_maps = []
+        
+        for i in range(1,nb_pairs+1):
+            if not os.path.isfile(os.path.join(tile_dir, 'pair_%d' % i, 'this_tile_is_masked.txt')):
+                height_maps.append(os.path.join(tile_dir, 'pair_%d' % i, 'height_map.tif'))
         process.finalize_tile(tile_info, height_maps)
         
         # ply extrema
@@ -263,7 +275,7 @@ def compute_dsm(args):
     
     # horizontal cuts
     ymin = global_ymin + current_tile*tile_y_size
-    ymax = ymin + tile_y_size
+    ymax = ymin + tile_y_size + 2*cfg['dsm_radius']*cfg['dsm_resolution']
     
     flags={}
     flags['average-orig']=0
@@ -272,12 +284,15 @@ def compute_dsm(args):
     flags['min']=3
     flags['max']=4
     flags['median']=5
-    flags['interpol']=6
+    flags['interpol-asympt']=6
+    flags['interpol-gauss']=7
     flag = "-flag %d" % ( flags.get(cfg['dsm_option'],0) )
+    radius = "-radius %d" % ( cfg['dsm_radius'] )
     
     if (ymax <= global_ymax):
-        common.run("plytodsm %s %f %s %s %f %f %f %f" % ( 
+        common.run("plytodsm %s %s %f %s %s %f %f %f %f" % ( 
                                                  flag,
+                                                 radius,
                                                  cfg['dsm_resolution'], 
                                                  out_dsm, 
                                                  list_of_tiles_dir,
@@ -342,9 +357,14 @@ def launch_parallel_calls(fun, list_of_args, nb_workers):
         except common.RunFailure as e:
             print "FAILED call: ", e.args[0]["command"]
             print "\toutput: ", e.args[0]["output"]
+        except ValueError as e:
+            print traceback.format_exc()
+            print str(r)
+            pass
         except KeyboardInterrupt:
             pool.terminate()
             sys.exit(1)
+        
 
 
 
@@ -413,7 +433,7 @@ def list_jobs(config_file, step):
     
     if step in [2,4]:           #preprocessing, processing
         f = open(os.path.join(cfg['out_dir'],filename),'w')
-        for tile in tilesFullInfo:
+        for tile in tiles_full_info:
             tile_dir = tile['directory']
             f.write(tile_dir + ' ' + str(step) + '\n')
         f.close()
@@ -448,6 +468,8 @@ def main(config_file, step=None, clusterMode=None, misc=None):
         value is None. In that case all the steps are run.
     """    
 
+    print_elapsed_time.t0 = datetime.datetime.now()
+
     if clusterMode == 'list_jobs':
         list_jobs(config_file, step)
     elif clusterMode == 'job':
@@ -460,7 +482,7 @@ def main(config_file, step=None, clusterMode=None, misc=None):
         # initialization (has to be done whatever the queried steps)
         initialization.init_dirs_srtm(config_file)
         tiles_full_info = initialization.init_tiles_full_info(config_file)
-        print_elapsed_time.t0 = datetime.datetime.now()
+        
 
         # multiprocessing setup
         nb_workers = multiprocessing.cpu_count()  # nb of available cores

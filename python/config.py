@@ -112,3 +112,6 @@ cfg['srtm_dir'] = os.path.join(parent_dir, '.srtm')
 
 # DSM options
 cfg['dsm_option'] = 'median'
+
+# DSM interpolation radius size
+cfg['dsm_radius'] = 0

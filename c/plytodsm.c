@@ -145,22 +145,25 @@ int compare (const void * a, const void * b)
   return ( *(float*)a - *(float*)b );
 }
 
-double weight(Position pos, Position center_pos)
+double weight(Position pos, Position center_pos, unsigned int flag)
 {
     double eps=10e-3;
     
     double d = pow(center_pos.x-pos.x,2.0)+pow(center_pos.y-pos.y,2.0);
     d = sqrt(d);
-    if (d>=3)
-	fprintf(stderr,"ERROR : dist too high : %f\n",d);
     
-    return 1.0/(d+eps);
-    
+    switch (flag) 
+    {
+	case 6: 
+	    return 1.0/(d+eps);
+	case 7:
+	    return exp(-d*d);
+    }
 }
 
 
 // update the output images with a new height
-static void add_height_to_images(struct images *x, int i, int j, float v, Position pos, unsigned int flag)
+static void add_height_to_images(struct images *x, int i, int j, float v, Position pos, int flag)
 {
     uint64_t k = (uint64_t) x->w * j + i;
     
@@ -172,11 +175,13 @@ static void add_height_to_images(struct images *x, int i, int j, float v, Positi
 	    x->cnt[k] += 1;
 	}
 	break;
+
 	case -3: // just count the number of occurrences
 	{
 	    x->cnt[k] += 1;
 	}
 	break;
+
 	case -2: // memory alloc and heights tab filling
 	{
 	    if (x->cnt[k])
@@ -204,6 +209,7 @@ static void add_height_to_images(struct images *x, int i, int j, float v, Positi
 		}
 		
 		x->heights[k][(int) x->cnt[k]] = v;
+
 		x->pos[k][(int) x->cnt[k]] = pos;
 		x->cnt[k] += 1;
 	    }
@@ -212,7 +218,7 @@ static void add_height_to_images(struct images *x, int i, int j, float v, Positi
     }
 }
 
-static void synth_heights(struct images *x, int i, int j, Position center_pos, unsigned int flag)
+static void synth_heights(struct images *x, int i, int j, Position center_pos, int flag, int radius)
 {
     uint64_t k = (uint64_t) x->w * j + i;
     
@@ -273,30 +279,31 @@ static void synth_heights(struct images *x, int i, int j, Position center_pos, u
 	    }
 	}
 	break;
-	case 6: // weighted by dist from center of cell
-	{
-	    double w;
-	    double sum=0.0,weighted_moy=0.0;
-	    
-	    int size_off = 1;
-	    for(int ii=-size_off; ii<=size_off; ii++)
-		for(int jj=-size_off; jj<=size_off; jj++)
-		    if ( (i+ii>=0) && (i+ii<x->w) && (j+jj>=0) && (j+jj<x->h) )
+    }
+    if (flag>=6)// weighted by dist from center of cell
+    {
+	double w;
+	double sum=0.0,weighted_moy=0.0;
+	
+	if (x->cnt[k]) // Do not interpolate
+	    radius = 0;
+	
+	for(int ii=-radius; ii<=radius; ii++)
+	    for(int jj=-radius; jj<=radius; jj++)
+		if ( (i+ii>=0) && (i+ii<x->w) && (j+jj>=0) && (j+jj<x->h) )
+		{
+		    uint64_t kt = (uint64_t) x->w * (j+jj) + i+ii;
+		    if (x->cnt[kt])
 		    {
-			uint64_t kt = (uint64_t) x->w * (j+jj) + i+ii;
-			if (x->cnt[kt])
+			for(int t=0;t<x->cnt[kt];t++)
 			{
-			    for(int t=0;t<x->cnt[kt];t++)
-			    {
-				w = weight(x->pos[kt][t],center_pos);
-				sum += w;
-				weighted_moy += w * ( (double) x->heights[kt][t] );
-			    }
+			    w = weight(x->pos[kt][t],center_pos,flag);
+			    sum += w;
+			    weighted_moy += w * ( (double) x->heights[kt][t] );
 			}
 		    }
-	    x->pixel_value[k] = weighted_moy/sum;
-	}
-	break;
+		}
+	x->pixel_value[k] = weighted_moy/sum;
     }
 }
 
@@ -387,7 +394,7 @@ static void add_ply_points_to_images(struct images *x,
 void help(char *s)
 {
 	fprintf(stderr, "usage:\n\t"
-			"%s [-c column] [-flag] resolution out_dsm list_of_tiles_txt xmin xmax ymin ymax\n", s);
+			"%s [-c column] [-flag] [-radius] resolution out_dsm list_of_tiles_txt xmin xmax ymin ymax\n", s);
 	fprintf(stderr, "\t the resolution is in meters per pixel\n");
 }
 
@@ -397,6 +404,7 @@ int main(int c, char *v[])
 {
 	int col_idx = atoi(pick_option(&c, &v, "c", "2"));
 	int flag = atoi(pick_option(&c, &v, "flag", "0"));
+	int radius = atoi(pick_option(&c, &v, "radius", "0"));
 
 	// process input arguments
 	if (c != 8) {
@@ -477,7 +485,7 @@ int main(int c, char *v[])
 		
 	if (nbply_pushed == 0)
 	{
-		fprintf(stderr, "ERROR : no ply file pushed", ply);
+		fprintf(stderr, "ERROR : no ply file pushed\n", ply);
 		return 1;
 	}
 		
@@ -534,9 +542,9 @@ int main(int c, char *v[])
 	    l=begin;
 	    while (l != NULL)
 	    {
-		    // printf("FILENAME: \"%s\"\n", l->current);
-		    add_ply_points_to_images(&x, xmin, xmax, ymin, ymax, utm, l->current, col_idx,-3);
-		    l = l->next;
+		// printf("FILENAME: \"%s\"\n", l->current);
+		add_ply_points_to_images(&x, xmin, xmax, ymin, ymax, utm, l->current, col_idx,-3);
+		l = l->next;
 	    }
 	    // set unknown values to NAN
 	    for (uint64_t i = 0; i < (uint64_t) w*h; i++)
@@ -546,14 +554,14 @@ int main(int c, char *v[])
 	    l=begin;
 	    while (l != NULL)
 	    {
-		    // printf("FILENAME: \"%s\"\n", l->current);
-		    int n;
-		    if (flag <6)
-			n=-2;
-		    else
-			n=-1;
-		    add_ply_points_to_images(&x, xmin, xmax, ymin, ymax, utm, l->current, col_idx,n);
-		    l = l->next;
+		// printf("FILENAME: \"%s\"\n", l->current);
+		int n;
+		if (flag <6)
+		    n=-2;
+		else
+		    n=-1;
+		add_ply_points_to_images(&x, xmin, xmax, ymin, ymax, utm, l->current, col_idx,n);
+		l = l->next;
 	    }
 	    
 	    // heights synthesis 
@@ -563,7 +571,7 @@ int main(int c, char *v[])
 		{
 		    center_pos.x=xmin+resolution/2.0 +(xmax-xmin)/( (float) w)*i;
 		    center_pos.y=-ymax+resolution/2.0 +(ymax-ymin)/( (float) h)*j;
-		    synth_heights(&x,i,j,center_pos,flag);
+		    synth_heights(&x,i,j,center_pos,flag,radius);
 		}
 	}
 
