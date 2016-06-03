@@ -126,10 +126,16 @@ static int rescale_float_to_int(double x, double min, double max, int w, bool *f
 }
 
 
+typedef struct {
+	float x;
+	float y;
+} Position;
+
 struct images {
 	float *cnt;
 	float *pixel_value;
 	float **heights;
+	Position **pos;
 	int w, h;
 };
 
@@ -139,96 +145,156 @@ int compare (const void * a, const void * b)
   return ( *(float*)a - *(float*)b );
 }
 
-// update the output images with a new height
-static void add_height_to_images(struct images *x, int i, int j, float v, unsigned int flag)
+double weight(Position pos, Position center_pos)
 {
-	uint64_t k = (uint64_t) x->w * j + i;
-	
-	switch (flag) // nominal case
-	{
-	    case 0:
-	    {
-		x->pixel_value[k] = (v + x->cnt[k] * x->pixel_value[k]) / (1 + x->cnt[k]);
-		x->cnt[k] += 1;
-	    }
-	    break;
-	    case -2: // just count the number of occurrences
-	    {
-		x->cnt[k] += 1;
-	    }
-	    break;
-	    case -1: // memory alloc and heights tab filling
-	    {
-		if (x->cnt[k])
-		{
-		    if (!x->heights[k])
-		    {
-			x->heights[k] = xmalloc(x->cnt[k]*sizeof(float));
-			x->cnt[k]=0;
-		    }
-		    
-		    x->heights[k][(int) x->cnt[k]] = v;
-		    x->cnt[k] += 1;
-		}
-	    }
-	    case 1: // average
-	    {
-		if (x->cnt[k])
-		{
-		    float sum=0.;
-		    for(int i=0;i<x->cnt[k];i++)
-		    {
-			sum += x->heights[k][i];
-		    }
-		    x->pixel_value[k] = sum / ( (float) x->cnt[k]);
-		}
-	    }
-	    break;
-	    case 2: // var
-	    {
-		if (x->cnt[k])
-		{
-		    double sum1=0.,sumC=0.;
-		    for(int i=0;i<x->cnt[k];i++)
-		    {
-			sum1 += (double) x->heights[k][i];
-			sumC += pow( (double) x->heights[k][i],2.0);
-		    }
-		    double m1 = sum1 / ( (double) x->cnt[k]);
-		    double mc = sumC / ( (double) x->cnt[k]);
+    double d = pow(center_pos.x-pos.x,2.0)+pow(center_pos.y-pos.y,2.0);
+    d = sqrt(d);
+    
+    return 1.0/d;
+    
+}
 
-		    x->pixel_value[k] = mc-m1*m1;
-		}
-	    }
-	    break;
-	    case 3: // min
-	    {
-		if (x->cnt[k])
-		{
-		    qsort (x->heights[k], (int) x->cnt[k], sizeof(float), compare);
-		    x->pixel_value[k] = x->heights[k][0];
-		}
-	    }
-	    break;
-	    case 4: // max
-	    {
-		if (x->cnt[k])
-		{
-		    qsort (x->heights[k], (int) x->cnt[k], sizeof(float), compare);
-		    x->pixel_value[k] = x->heights[k][(int) x->cnt[k]-1];
-		}
-	    }
-	    break;
-	    case 5: // median
-	    {
-		if (x->cnt[k])
-		{
-		    qsort (x->heights[k], (int) x->cnt[k], sizeof(float), compare);
-		    x->pixel_value[k] = x->heights[k][(int) x->cnt[k]/2];
-		}
-	    }
-	    break;
+
+// update the output images with a new height
+static void add_height_to_images(struct images *x, int i, int j, float v, Position pos, unsigned int flag)
+{
+    uint64_t k = (uint64_t) x->w * j + i;
+    
+    switch (flag) 
+    {
+	case 0: // nominal case
+	{
+	    x->pixel_value[k] = (v + x->cnt[k] * x->pixel_value[k]) / (1 + x->cnt[k]);
+	    x->cnt[k] += 1;
 	}
+	break;
+	case -3: // just count the number of occurrences
+	{
+	    x->cnt[k] += 1;
+	}
+	break;
+	case -2: // memory alloc and heights tab filling
+	{
+	    if (x->cnt[k])
+	    {
+		if (!x->heights[k])
+		{
+		    x->heights[k] = xmalloc(x->cnt[k]*sizeof(float));
+		    x->cnt[k]=0;
+		}
+		
+		x->heights[k][(int) x->cnt[k]] = v;
+		x->cnt[k] += 1;
+	    }
+	}
+	break;
+	case -1: // memory alloc and tab filling for heights/pos
+	{
+	    if (x->cnt[k])
+	    {
+		if ( (!x->heights[k]) && (!x->pos[k]) ) 
+		{
+		    x->heights[k] = xmalloc(x->cnt[k]*sizeof(float));
+		    x->pos[k] = xmalloc(x->cnt[k]*sizeof(Position));
+		    x->cnt[k]=0;
+		}
+		
+		x->heights[k][(int) x->cnt[k]] = v;
+		x->pos[k][(int) x->cnt[k]] = pos;
+		x->cnt[k] += 1;
+	    }
+	}
+    }
+}
+
+static void synth_heights(struct images *x, int i, int j, Position center_pos, unsigned int flag)
+{
+    uint64_t k = (uint64_t) x->w * j + i;
+    
+    switch (flag) 
+    {	   	    
+	case 1: // average
+	{
+	    if (x->cnt[k])
+	    {
+		float sum=0.;
+		for(int i=0;i<x->cnt[k];i++)
+		{
+		    sum += x->heights[k][i];
+		}
+		x->pixel_value[k] = sum / ( (float) x->cnt[k]);
+	    }
+	}
+	break;
+	case 2: // var
+	{
+	    if (x->cnt[k])
+	    {
+		double sum1=0.,sumC=0.;
+		for(int i=0;i<x->cnt[k];i++)
+		{
+		    sum1 += (double) x->heights[k][i];
+		    sumC += pow( (double) x->heights[k][i],2.0);
+		}
+		double m1 = sum1 / ( (double) x->cnt[k]);
+		double mc = sumC / ( (double) x->cnt[k]);
+
+		x->pixel_value[k] = mc-m1*m1;
+	    }
+	}
+	break;
+	case 3: // min
+	{
+	    if (x->cnt[k])
+	    {
+		qsort (x->heights[k], (int) x->cnt[k], sizeof(float), compare);
+		x->pixel_value[k] = x->heights[k][0];
+	    }
+	}
+	break;
+	case 4: // max
+	{
+	    if (x->cnt[k])
+	    {
+		qsort (x->heights[k], (int) x->cnt[k], sizeof(float), compare);
+		x->pixel_value[k] = x->heights[k][(int) x->cnt[k]-1];
+	    }
+	}
+	break;
+	case 5: // median
+	{
+	    if (x->cnt[k])
+	    {
+		qsort (x->heights[k], (int) x->cnt[k], sizeof(float), compare);
+		x->pixel_value[k] = x->heights[k][(int) x->cnt[k]/2];
+	    }
+	}
+	break;
+	case 6: // weighted by dist from center of cell
+	{
+	    double w;
+	    double sum=0.0,weighted_moy=0.0;
+	    
+	    int size_off = 1;
+	    for(int ii=-size_off; ii<=size_off; ii++)
+		for(int jj=-size_off; jj<=size_off; jj++)
+		    if ( (i+ii>=0) && (i+ii<x->w) && (j+jj>=0) && (j+jj<x->h) )
+		    {
+			uint64_t kt = (uint64_t) x->w * (j+jj) + i+ii;
+			if (x->cnt[kt])
+			{
+			    for(int i=0;i<x->cnt[kt];i++)
+			    {
+				w = weight(x->pos[kt][i],center_pos);
+				sum += w;
+				weighted_moy += w * ( (double) x->heights[kt][i] );
+			    }
+			}
+		    }
+	    x->pixel_value[k] = weighted_moy/sum;
+	}
+	break;
+    }
 }
 
 int get_record(FILE *f_in, int isbin, struct ply_property *t, int n, double *data){
@@ -287,21 +353,26 @@ static void add_ply_points_to_images(struct images *x,
 
 
 	double data[n];
+	double center_x,center_y,d;
 	while ( n == get_record(f, isbin, t, n, data) ) {
 		bool flag1,flag2;
 		int i = rescale_float_to_int(data[0], xmin, xmax, x->w, &flag1);
 		int j = rescale_float_to_int(-data[1], -ymax, -ymin, x->h, &flag2);
 		
+		Position pos;
+		pos.x=data[0];
+		pos.y=-data[1];
+				
 		if ( (flag1) && (flag2))
 		{
 		    if (col_idx == 2) {
-			    add_height_to_images(x, i, j, data[2],flag);
+			    add_height_to_images(x, i, j, data[2], pos, flag);
 			    assert(isfinite(data[2]));
 		    }
 		    else
 		    {
 			    unsigned int rgb = data[col_idx];
-			    add_height_to_images(x, i, j, rgb,flag);
+			    add_height_to_images(x, i, j, rgb, pos, flag);
 		    }
 		}
 	}
@@ -348,15 +419,15 @@ int main(int c, char *v[])
 	char ply[1000];
 	char ply_extrema[1000];
 	char utm[3];
-	uint64_t nbply_pushed=0;
+	
 	float local_xmin,local_xmax,local_ymin,local_ymax;
 	
 	struct list *l = NULL;
 	
 	// From the list of tiles, find each ply file
-	bool ply_extrema_found;
+	unsigned int nbply_pushed=0;
 	list_tiles_file = fopen(v[3], "r");
-	if (list_tiles_file != NULL)
+	if (list_tiles_file)
 	{
 	    while (fgets(tile_dir, 1000, list_tiles_file) != NULL)
 	    {
@@ -366,31 +437,19 @@ int main(int c, char *v[])
 	       // Now, find the extent of a given ply file, 
 	       // specified by [local_xmin local_xmax local_ymin local_ymax]
 	       ply_extrema_file = fopen(ply_extrema, "r");
-	       if (ply_extrema_file != NULL)
+	       if (ply_extrema_file)
 	       {
 		  fscanf(ply_extrema_file, "%f %f %f %f", &local_xmin, &local_xmax, &local_ymin, &local_ymax);
 		  fclose(ply_extrema_file);
-		  ply_extrema_found = true;
-	       }
-	       else
-	       {
-		    fprintf(stderr,"WARNING 1 : can not open file %s\n",ply_extrema);
-		    ply_extrema_found = false;
-	       }
-	       
-	       // Only add ply files that intersect the extent specified by [xmin xmax ymin ymax]
-	       // The test below simply tells whether two rectancles overlap
-	       if (ply_extrema_found)
-	       {
-		   if ( (local_xmin <= xmax) && (local_xmax >= xmin) && (local_ymin <= ymax) && (local_ymax >= ymin) )
+		  
+		  // Only add ply files that intersect the extent specified by [xmin xmax ymin ymax]
+		  // The test below simply tells whether two rectancles overlap
+		  if ( (local_xmin <= xmax) && (local_xmax >= xmin) && (local_ymin <= ymax) && (local_ymax >= ymin) )
 		   {
 		       sprintf(ply,"%s/cloud.ply",tile_dir);
 		       // Record UTM zone
 		       FILE *ply_file = fopen(ply, "r");
-			if (!ply_file) {
-				fprintf(stderr, "WARNING 2 : can not open file \"%s\"\n", ply);
-			}
-			else
+			if (ply_file) 
 			{
 			    l = push(l, ply);
 			    nbply_pushed++;
@@ -398,15 +457,25 @@ int main(int c, char *v[])
 			    struct ply_property t[100];
 			    size_t n = header_get_record_length_and_utm_zone(ply_file, utm, &isbin, t);
 			}
+			else
+			    fprintf(stderr, "WARNING 2 : can not open file \"%s\"\n", ply);
 		   }
-		}
-	    }
+		  
+	       }
+	       else
+		    fprintf(stderr,"WARNING 1 : can not open file %s\n",ply_extrema);
+
+	    } //end while (fgets(tile_dir, 1000, list_tiles_file) != NULL)
 	    fclose(list_tiles_file);
 	}
 	else
-	{
 	    fprintf(stderr,"ERROR : can not open file %s\n",v[3]);
-	    return 1;
+		
+		
+	if (nbply_pushed == 0)
+	{
+		fprintf(stderr, "ERROR : no ply file pushed", ply);
+		return 1;
 	}
 		
 	// compute output image dimensions
@@ -420,14 +489,24 @@ int main(int c, char *v[])
 	x.cnt = xmalloc(w*h*sizeof(float));
 	x.pixel_value = xmalloc(w*h*sizeof(float));
 	if (flag != 0)
+	{
 	    x.heights = xmalloc(w*h*sizeof(float *));
+	    if (flag>=6) // interpolation
+		x.pos = xmalloc(w*h*sizeof(Position *));
+	}
+
 	for (uint64_t i = 0; i < (uint64_t) w*h; i++)
 	{
 		x.cnt[i] = 0;
 		x.pixel_value[i] = 0;
 		if (flag != 0)
+		{
 		    x.heights[i] = NULL;
+		    if (flag>=6) // interpolation
+			x.pos[i] = NULL;
+		}
 	}
+
 
 	// process each filename to accumulate points in the dem
 	struct list *begin = l;
@@ -448,38 +527,41 @@ int main(int c, char *v[])
 	}
 	else
 	{
-	    if (nbply_pushed>0)
+
+	    l=begin;
+	    while (l != NULL)
 	    {
-		l=begin;
-		while (l != NULL)
-		{
-			// printf("FILENAME: \"%s\"\n", l->current);
-			add_ply_points_to_images(&x, xmin, xmax, ymin, ymax, utm, l->current, col_idx,-2);
-			l = l->next;
-		}
-		// set unknown values to NAN
-		for (uint64_t i = 0; i < (uint64_t) w*h; i++)
-			if (!x.cnt[i])
-				x.pixel_value[i] = NAN;
-		
-		l=begin;
-		while (l != NULL)
-		{
-			// printf("FILENAME: \"%s\"\n", l->current);
-			add_ply_points_to_images(&x, xmin, xmax, ymin, ymax, utm, l->current, col_idx,-1);
-			l = l->next;
-		}
-		
-		l=begin;
-		while (l != NULL)
-		{
-			// printf("FILENAME: \"%s\"\n", l->current);
-			add_ply_points_to_images(&x, xmin, xmax, ymin, ymax, utm, l->current, col_idx,flag);
-			l = l->next;
-		}
+		    // printf("FILENAME: \"%s\"\n", l->current);
+		    add_ply_points_to_images(&x, xmin, xmax, ymin, ymax, utm, l->current, col_idx,-3);
+		    l = l->next;
 	    }
-	    else
-		fprintf(stderr, "WARNING 3 : no ply file pushed.", ply);
+	    // set unknown values to NAN
+	    for (uint64_t i = 0; i < (uint64_t) w*h; i++)
+		    if (!x.cnt[i])
+			    x.pixel_value[i] = NAN;
+	    
+	    l=begin;
+	    while (l != NULL)
+	    {
+		    // printf("FILENAME: \"%s\"\n", l->current);
+		    int n;
+		    if (flag <6)
+			n=-2;
+		    else
+			n=-1;
+		    add_ply_points_to_images(&x, xmin, xmax, ymin, ymax, utm, l->current, col_idx,n);
+		    l = l->next;
+	    }
+	    
+	    // heights synthesis 
+	    Position center_pos;
+	    for (int i = 0; i < w; i++)
+		for (int j = 0; j < h; j++)
+		{
+		    center_pos.x=xmin+resolution/2.0 +(xmax-xmin)/( (float) w)*i;
+		    center_pos.y=-ymax+resolution/2.0 +(ymax-ymin)/( (float) h)*j;
+		    synth_heights(&x,i,j,center_pos,flag);
+		}
 	}
 
 	// save output image
@@ -491,8 +573,13 @@ int main(int c, char *v[])
 	free(x.pixel_value);
 	for (uint64_t i = 0; i < (uint64_t) w*h; i++)
 	    if (flag != 0)
-		free(x.heights[i]);
+		{
+		    free(x.heights[i]);
+		    if (flag>=6) // interpolation
+			free(x.pos[i]);
+		}
 	free(x.heights);
+	free(x.pos);
 	    
 	return 0;
 }
