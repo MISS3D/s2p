@@ -450,31 +450,32 @@ int main(int c, char *v[])
 	       ply_extrema_file = fopen(ply_extrema, "r");
 	       if (ply_extrema_file)
 	       {
-		  fscanf(ply_extrema_file, "%f %f %f %f", &local_xmin, &local_xmax, &local_ymin, &local_ymax);
-		  fclose(ply_extrema_file);
-		  
-		  // Only add ply files that intersect the extent specified by [xmin xmax ymin ymax]
-		  // The test below simply tells whether two rectancles overlap
-		  if ( (local_xmin <= xmax) && (local_xmax >= xmin) && (local_ymin <= ymax) && (local_ymax >= ymin) )
-		   {
-		       sprintf(ply,"%s/cloud.ply",tile_dir);
-		       // Record UTM zone
-		       FILE *ply_file = fopen(ply, "r");
-			if (ply_file) 
-			{
-			    l = push(l, ply);
-			    nbply_pushed++;
-			    int isbin=0;
-			    struct ply_property t[100];
-			    size_t n = header_get_record_length_and_utm_zone(ply_file, utm, &isbin, t);
-			}
-			else
-			    fprintf(stderr, "WARNING 2 : can not open file \"%s\"\n", ply);
-		   }
-		  
+                fscanf(ply_extrema_file, "%f %f %f %f", &local_xmin, &local_xmax, &local_ymin, &local_ymax);
+                fclose(ply_extrema_file);
+
+                // Only add ply files that intersect the extent specified by [xmin xmax ymin ymax]
+                // The test below simply tells whether two rectancles overlap
+                if ( (local_xmin <= xmax) && (local_xmax >= xmin) && (local_ymin <= ymax) && (local_ymax >= ymin) )
+                {
+                    sprintf(ply,"%s/cloud.ply",tile_dir);
+                    // Record UTM zone
+                    FILE *ply_file = fopen(ply, "r");
+                    if (ply_file) 
+                    {
+                        l = push(l, ply);
+                        nbply_pushed++;
+                        int isbin=0;
+                        struct ply_property t[100];
+                        size_t n = header_get_record_length_and_utm_zone(ply_file, utm, &isbin, t);
+                        fclose(ply_file);
+                    }
+                    else
+                        fprintf(stderr, "WARNING 2 : can not open file \"%s\"\n", ply);
+                }
 	       }
 	       else
 		    fprintf(stderr,"WARNING 1 : can not open file %s\n",ply_extrema);
+
 
 	    } //end while (fgets(tile_dir, 1000, list_tiles_file) != NULL)
 	    fclose(list_tiles_file);
@@ -497,6 +498,7 @@ int main(int c, char *v[])
 	struct images x;
 	x.w = w;
 	x.h = h;
+<<<<<<< HEAD
 	x.cnt = xmalloc(w*h*sizeof(float));
 	x.pixel_value = xmalloc(w*h*sizeof(float));
 	if (flag != 0)
@@ -506,6 +508,10 @@ int main(int c, char *v[])
 		x.pos = xmalloc(w*h*sizeof(Position *));
 	}
 
+=======
+	x.cnt = xmalloc((uint64_t) w*h*sizeof(float));
+	x.avg = xmalloc((uint64_t) w*h*sizeof(float));
+>>>>>>> master
 	for (uint64_t i = 0; i < (uint64_t) w*h; i++)
 	{
 		x.cnt[i] = 0;
