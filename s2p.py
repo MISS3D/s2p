@@ -283,7 +283,7 @@ def compute_dsm(args):
     
     # horizontal cuts
     ymin = global_ymin + current_tile*tile_y_size
-    ymax = ymin + tile_y_size + 2*cfg['dsm_radius']*cfg['dsm_resolution']
+    ymax = ymin + tile_y_size #+ 2*cfg['dsm_radius']*cfg['dsm_resolution']
     
     flags={}
     flags['average-orig']=0

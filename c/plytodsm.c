@@ -419,7 +419,14 @@ int main(int c, char *v[])
 	float xmax = atof(v[5]);
 	float ymin = atof(v[6]);
 	float ymax = atof(v[7]);
+    float ymax_orig=ymax;
 	fprintf(stderr, "xmin: %20f, xmax: %20f, ymin: %20f, ymax: %20f\n", xmin,xmax,ymin,ymax);
+    if (flag>=6) // interpolation
+    {
+        ymax += radius*resolution;
+        fprintf(stderr, "interpolation --> xmin: %20f, xmax: %20f, ymin: %20f, ymax: %20f\n", xmin,xmax,ymin,ymax);
+    }
+    
 
 	// process each filename to determine x, y extremas and store the
 	// filenames in a list of strings, to be able to open the files again
@@ -486,7 +493,7 @@ int main(int c, char *v[])
 		
 	if (nbply_pushed == 0)
 	{
-		fprintf(stderr, "ERROR : no ply file pushed\n", ply);
+		fprintf(stderr, "ERROR : no ply file pushed\n");
 		return 1;
 	}
 		
@@ -557,7 +564,7 @@ int main(int c, char *v[])
 	    {
 		// printf("FILENAME: \"%s\"\n", l->current);
 		int n;
-		if (flag <6)
+		if (flag <6) // no interpolation
 		    n=-2;
 		else
 		    n=-1;
@@ -575,6 +582,21 @@ int main(int c, char *v[])
 		    synth_heights(&x,i,j,center_pos,flag,radius);
 		}
 	}
+
+    if ( (flag>=6) && (radius>0) )//interpolation, remove extra pixels due to neighboring
+    {
+        ymax = ymax_orig;
+        h = 1 + (ymax - ymin) / resolution;
+        float *ptr_realloc = (float *) realloc(x.pixel_value, (uint64_t) w*h * sizeof(float));
+        
+        if(ptr_realloc)
+            x.pixel_value = ptr_realloc;
+        else
+        {
+            fprintf(stderr, "ERROR : realloc failed\n");
+		    return 1;
+        }
+    }
 
 	// save output image
 	iio_save_image_float(out_dsm, x.pixel_value, w, h);
