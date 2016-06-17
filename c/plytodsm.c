@@ -498,20 +498,15 @@ int main(int c, char *v[])
 	struct images x;
 	x.w = w;
 	x.h = h;
-<<<<<<< HEAD
-	x.cnt = xmalloc(w*h*sizeof(float));
-	x.pixel_value = xmalloc(w*h*sizeof(float));
+	x.cnt = xmalloc((uint64_t) w*h*sizeof(float));
+	x.pixel_value = xmalloc((uint64_t) w*h*sizeof(float));
 	if (flag != 0)
 	{
-	    x.heights = xmalloc(w*h*sizeof(float *));
+	    x.heights = xmalloc((uint64_t) w*h*sizeof(float *));
 	    if (flag>=6) // interpolation
-		x.pos = xmalloc(w*h*sizeof(Position *));
+		x.pos = xmalloc((uint64_t) w*h*sizeof(Position *));
 	}
 
-=======
-	x.cnt = xmalloc((uint64_t) w*h*sizeof(float));
-	x.avg = xmalloc((uint64_t) w*h*sizeof(float));
->>>>>>> master
 	for (uint64_t i = 0; i < (uint64_t) w*h; i++)
 	{
 		x.cnt[i] = 0;
