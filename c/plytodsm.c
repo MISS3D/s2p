@@ -224,86 +224,90 @@ static void synth_heights(struct images *x, int i, int j, Position center_pos, i
     
     switch (flag) 
     {	   	    
-	case 1: // average
-	{
-	    if (x->cnt[k])
-	    {
-		float sum=0.;
-		for(int t=0;t<x->cnt[k];t++)
-		    sum += x->heights[k][t];
-		x->pixel_value[k] = sum / ( (float) x->cnt[k]);
-	    }
-	}
-	break;
-	case 2: // var
-	{
-	    if (x->cnt[k])
-	    {
-		double sum1=0.,sumC=0.;
-		for(int t=0;t<x->cnt[k];t++)
-		{
-		    sum1 += (double) x->heights[k][t];
-		    sumC += pow( (double) x->heights[k][t],2.0);
-		}
-		double m1 = sum1 / ( (double) x->cnt[k]);
-		double mc = sumC / ( (double) x->cnt[k]);
+        case 1: // average
+        {
+            if (x->cnt[k])
+            {
+            float sum=0.;
+            for(int t=0;t<x->cnt[k];t++)
+                sum += x->heights[k][t];
+            x->pixel_value[k] = sum / ( (float) x->cnt[k]);
+            }
+        }
+        break;
+        case 2: // var
+        {
+            if (x->cnt[k])
+            {
+            double sum1=0.,sumC=0.;
+            for(int t=0;t<x->cnt[k];t++)
+            {
+                sum1 += (double) x->heights[k][t];
+                sumC += pow( (double) x->heights[k][t],2.0);
+            }
+            double m1 = sum1 / ( (double) x->cnt[k]);
+            double mc = sumC / ( (double) x->cnt[k]);
 
-		x->pixel_value[k] = mc-m1*m1;
-	    }
-	}
-	break;
-	case 3: // min
-	{
-	    if (x->cnt[k])
-	    {
-		qsort (x->heights[k], (int) x->cnt[k], sizeof(float), compare);
-		x->pixel_value[k] = x->heights[k][0];
-	    }
-	}
-	break;
-	case 4: // max
-	{
-	    if (x->cnt[k])
-	    {
-		qsort (x->heights[k], (int) x->cnt[k], sizeof(float), compare);
-		x->pixel_value[k] = x->heights[k][(int) x->cnt[k]-1];
-	    }
-	}
-	break;
-	case 5: // median
-	{
-	    if (x->cnt[k])
-	    {
-		qsort (x->heights[k], (int) x->cnt[k], sizeof(float), compare);
-		x->pixel_value[k] = x->heights[k][(int) x->cnt[k]/2];
-	    }
-	}
-	break;
+            x->pixel_value[k] = mc-m1*m1;
+            }
+        }
+        break;
+        case 3: // min
+        {
+            if (x->cnt[k])
+            {
+            qsort (x->heights[k], (int) x->cnt[k], sizeof(float), compare);
+            x->pixel_value[k] = x->heights[k][0];
+            }
+        }
+        break;
+        case 4: // max
+        {
+            if (x->cnt[k])
+            {
+            qsort (x->heights[k], (int) x->cnt[k], sizeof(float), compare);
+            x->pixel_value[k] = x->heights[k][(int) x->cnt[k]-1];
+            }
+        }
+        break;
+        case 5: // median
+        {
+            if (x->cnt[k])
+            {
+            qsort (x->heights[k], (int) x->cnt[k], sizeof(float), compare);
+            x->pixel_value[k] = x->heights[k][(int) x->cnt[k]/2];
+            }
+        }
+        break;
     }
+    
     if (flag>=6)// weighted by dist from center of cell
     {
-	double w;
-	double sum=0.0,weighted_moy=0.0;
-	
-	if (x->cnt[k]) // Do not interpolate
-	    radius = 0;
-	
-	for(int ii=-radius; ii<=radius; ii++)
-	    for(int jj=-radius; jj<=radius; jj++)
-		if ( (i+ii>=0) && (i+ii<x->w) && (j+jj>=0) && (j+jj<x->h) )
-		{
-		    uint64_t kt = (uint64_t) x->w * (j+jj) + i+ii;
-		    if (x->cnt[kt])
-		    {
-			for(int t=0;t<x->cnt[kt];t++)
-			{
-			    w = weight(x->pos[kt][t],center_pos,flag);
-			    sum += w;
-			    weighted_moy += w * ( (double) x->heights[kt][t] );
-			}
-		    }
-		}
-	x->pixel_value[k] = weighted_moy/sum;
+        double w;
+        double sum=0.0,weighted_moy=0.0;
+        
+        if (x->cnt[k]) // Do not interpolate
+            radius = 0;
+        
+        bool found = false;
+        for(int ii=-radius; ii<=radius; ii++)
+            for(int jj=-radius; jj<=radius; jj++)
+            if ( (i+ii>=0) && (i+ii<x->w) && (j+jj>=0) && (j+jj<x->h) )
+            {
+                uint64_t kt = (uint64_t) x->w * (j+jj) + i+ii;
+                if (x->cnt[kt])
+                {
+                    found = true;
+                    for(int t=0;t<x->cnt[kt];t++)
+                    {
+                        w = weight(x->pos[kt][t],center_pos,flag);
+                        sum += w;
+                        weighted_moy += w * ( (double) x->heights[kt][t] );
+                    }
+                }
+            }
+        if (found)
+            x->pixel_value[k] = weighted_moy/sum;
     }
 }
 
