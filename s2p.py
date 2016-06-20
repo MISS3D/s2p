@@ -294,13 +294,16 @@ def compute_dsm(args):
     flags['median']=5
     flags['interpol-asympt']=6
     flags['interpol-gauss']=7
+    flags['interpol-sigmoid']=8
     flag = "-flag %d" % ( flags.get(cfg['dsm_option'],0) )
     radius = "-radius %d" % ( cfg['dsm_radius'] )
+    pinterp = "-pinterp %d" % ( cfg['dsm_pinterp'] )
     
     if (ymax <= global_ymax):
-        common.run("plytodsm %s %s %f %s %s %f %f %f %f" % ( 
+        common.run("plytodsm %s %s %s %f %s %s %f %f %f %f" % ( 
                                                  flag,
                                                  radius,
+                                                 pinterp,
                                                  cfg['dsm_resolution'], 
                                                  out_dsm, 
                                                  list_of_tiles_dir,

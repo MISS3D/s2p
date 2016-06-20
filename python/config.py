@@ -115,3 +115,6 @@ cfg['dsm_option'] = 'median'
 
 # DSM interpolation radius size
 cfg['dsm_radius'] = 0
+
+# DSM interpolation parameter
+cfg['dsm_pinterp'] = 1

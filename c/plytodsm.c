@@ -145,7 +145,7 @@ int compare (const void * a, const void * b)
   return ( *(float*)a - *(float*)b );
 }
 
-double weight(Position pos, Position center_pos, unsigned int flag)
+double weight(Position pos, Position center_pos, unsigned int flag,float pinterp)
 {
     double eps=10e-3;
     
@@ -157,7 +157,9 @@ double weight(Position pos, Position center_pos, unsigned int flag)
 	case 6: 
 	    return 1.0/(d+eps);
 	case 7:
-	    return exp(-d*d);
+	    return exp(-pinterp*d*d);
+	case 8:
+	    return 1/(1+exp(pinterp*d));
     }
 }
 
@@ -218,7 +220,7 @@ static void add_height_to_images(struct images *x, int i, int j, float v, Positi
     }
 }
 
-static void synth_heights(struct images *x, int i, int j, Position center_pos, int flag, int radius)
+static void synth_heights(struct images *x, int i, int j, Position center_pos, int flag, int radius, float pinterp)
 {
     uint64_t k = (uint64_t) x->w * j + i;
     
@@ -300,7 +302,7 @@ static void synth_heights(struct images *x, int i, int j, Position center_pos, i
                     found = true;
                     for(int t=0;t<x->cnt[kt];t++)
                     {
-                        w = weight(x->pos[kt][t],center_pos,flag);
+                        w = weight(x->pos[kt][t],center_pos,flag,pinterp);
                         sum += w;
                         weighted_moy += w * ( (double) x->heights[kt][t] );
                     }
@@ -409,6 +411,7 @@ int main(int c, char *v[])
 	int col_idx = atoi(pick_option(&c, &v, "c", "2"));
 	int flag = atoi(pick_option(&c, &v, "flag", "0"));
 	int radius = atoi(pick_option(&c, &v, "radius", "0"));
+	float param_inter = atof(pick_option(&c, &v, "pinterp", "1"));
 
 	// process input arguments
 	if (c != 8) {
@@ -583,7 +586,7 @@ int main(int c, char *v[])
 		{
 		    center_pos.x=xmin+resolution/2.0 +(xmax-xmin)/( (float) w)*i;
 		    center_pos.y=-ymax+resolution/2.0 +(ymax-ymin)/( (float) h)*j;
-		    synth_heights(&x,i,j,center_pos,flag,radius);
+		    synth_heights(&x,i,j,center_pos,flag,radius,param_inter);
 		}
 	}
 
