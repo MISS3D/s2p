@@ -177,13 +177,11 @@ static void add_height_to_images(struct images *x, int i, int j, float v, Positi
 	    x->cnt[k] += 1;
 	}
 	break;
-
 	case -3: // just count the number of occurrences
 	{
 	    x->cnt[k] += 1;
 	}
 	break;
-
 	case -2: // memory alloc and heights tab filling
 	{
 	    if (x->cnt[k])
@@ -400,7 +398,7 @@ static void add_ply_points_to_images(struct images *x,
 void help(char *s)
 {
 	fprintf(stderr, "usage:\n\t"
-			"%s [-c column] [-flag] [-radius] resolution out_dsm list_of_tiles_txt xmin xmax ymin ymax\n", s);
+			"%s [-c column] [-flag] resolution out_dsm xmin xmax ymin ymax rowmin steprow rowmax colmin stepcol colmax tw th root_out_dir\n", s);
 	fprintf(stderr, "\t the resolution is in meters per pixel\n");
 }
 
@@ -414,33 +412,39 @@ int main(int c, char *v[])
 	float param_inter = atof(pick_option(&c, &v, "pinterp", "1"));
 
 	// process input arguments
-	if (c != 8) {
+	if (c != 16) {
 		help(*v);
 		return 1;
 	}
 	float resolution = atof(v[1]);
 	char *out_dsm = v[2];
 	
-	
-	float xmin = atof(v[4]);
-	float xmax = atof(v[5]);
-	float ymin = atof(v[6]);
-	float ymax = atof(v[7]);
-    float ymax_orig=ymax;
+	float xmin = atof(v[3]);
+	float xmax = atof(v[4]);
+	float ymin = atof(v[5]);
+	float ymax = atof(v[6]);
+	float ymax_orig=ymax;
 	fprintf(stderr, "xmin: %20f, xmax: %20f, ymin: %20f, ymax: %20f\n", xmin,xmax,ymin,ymax);
-    if (flag>=6) // interpolation
-    {
-        ymax += radius*resolution;
-        fprintf(stderr, "interpolation --> xmin: %20f, xmax: %20f, ymin: %20f, ymax: %20f\n", xmin,xmax,ymin,ymax);
-    }
-    
+	int rowmin = atoi(v[7]);
+	int steprow = atoi(v[8]);
+	int rowmax = atoi(v[9]);
+	int colmin = atoi(v[10]);
+	int stepcol = atoi(v[11]);
+	int colmax = atoi(v[12]);
+	int tw = atoi(v[13]);
+	int th = atoi(v[14]);
+	char *root_out_dir=v[15];
+	
+	if (flag>=6) // interpolation
+	{
+	    ymax += radius*resolution;
+	    fprintf(stderr, "interpolation --> xmin: %20f, xmax: %20f, ymin: %20f, ymax: %20f\n", xmin,xmax,ymin,ymax);
+	}
 
 	// process each filename to determine x, y extremas and store the
 	// filenames in a list of strings, to be able to open the files again
-	FILE* list_tiles_file = NULL;
 	FILE* ply_extrema_file = NULL;
 	
-	char tile_dir[1000];
 	char ply[1000];
 	char ply_extrema[1000];
 	char utm[3];
@@ -450,53 +454,45 @@ int main(int c, char *v[])
 	struct list *l = NULL;
 	
 	// From the list of tiles, find each ply file
-	unsigned int nbply_pushed=0;
-	list_tiles_file = fopen(v[3], "r");
-	if (list_tiles_file)
-	{
-	    while (fgets(tile_dir, 1000, list_tiles_file) != NULL)
+	uint64_t nbply_pushed=0;
+	int row,col;
+	for(row=rowmin;row<=rowmax;row+=steprow)
+	    for(col=colmin;col<=colmax;col+=stepcol)
 	    {
-	       strtok(tile_dir, "\n");
-	       sprintf(ply_extrema,"%s/plyextrema.txt",tile_dir);
+	       //strtok(tile_dir, "\n");
+	       sprintf(ply_extrema,"%s/tile_%d_%d_row_%d/col_%d/plyextrema.txt",root_out_dir,tw,th,row,col);
 	       
 	       // Now, find the extent of a given ply file, 
 	       // specified by [local_xmin local_xmax local_ymin local_ymax]
 	       ply_extrema_file = fopen(ply_extrema, "r");
 	       if (ply_extrema_file)
 	       {
-                fscanf(ply_extrema_file, "%f %f %f %f", &local_xmin, &local_xmax, &local_ymin, &local_ymax);
-                fclose(ply_extrema_file);
+		  fscanf(ply_extrema_file, "%f %f %f %f", &local_xmin, &local_xmax, &local_ymin, &local_ymax);
+		  fclose(ply_extrema_file);
 
-                // Only add ply files that intersect the extent specified by [xmin xmax ymin ymax]
-                // The test below simply tells whether two rectancles overlap
-                if ( (local_xmin <= xmax) && (local_xmax >= xmin) && (local_ymin <= ymax) && (local_ymax >= ymin) )
-                {
-                    sprintf(ply,"%s/cloud.ply",tile_dir);
-                    // Record UTM zone
-                    FILE *ply_file = fopen(ply, "r");
-                    if (ply_file) 
-                    {
-                        l = push(l, ply);
-                        nbply_pushed++;
-                        int isbin=0;
-                        struct ply_property t[100];
-                        size_t n = header_get_record_length_and_utm_zone(ply_file, utm, &isbin, t);
-                        fclose(ply_file);
-                    }
-                    else
-                        fprintf(stderr, "WARNING 2 : can not open file \"%s\"\n", ply);
-                }
+		  // Only add ply files that intersect the extent specified by [xmin xmax ymin ymax]
+		  // The test below simply tells whether two rectancles overlap
+		  if ( (local_xmin <= xmax) && (local_xmax >= xmin) && (local_ymin <= ymax) && (local_ymax >= ymin) )
+		   {
+		       sprintf(ply,"%s/tile_%d_%d_row_%d/col_%d/cloud.ply",root_out_dir,tw,th,row,col);
+		       // Record UTM zone
+		       FILE *ply_file = fopen(ply, "r");
+			if (ply_file) 
+			{
+			    l = push(l, ply);
+			    nbply_pushed++;
+			    int isbin=0;
+			    struct ply_property t[100];
+			    size_t n = header_get_record_length_and_utm_zone(ply_file, utm, &isbin, t);
+			    fclose(ply_file);
+			}
+			else
+			    fprintf(stderr, "WARNING 2 : can not open file \"%s\"\n", ply);
+		   }
 	       }
 	       else
 		    fprintf(stderr,"WARNING 1 : can not open file %s\n",ply_extrema);
-
-
-	    } //end while (fgets(tile_dir, 1000, list_tiles_file) != NULL)
-	    fclose(list_tiles_file);
-	}
-	else
-	    fprintf(stderr,"ERROR : can not open file %s\n",v[3]);
-		
+	    } //end for loops
 		
 	if (nbply_pushed == 0)
 	{

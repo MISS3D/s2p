@@ -265,11 +265,11 @@ def compute_dsm(args):
     Compute the DSMs
 
     Args: 
-         - args  ( <==> [number_of_tiles,current_tile])
+         - args  ( <==> [config_file,number_of_tiles,current_tile])
     """
     list_of_tiles_dir = os.path.join(cfg['out_dir'],'list_of_tiles.txt')
    
-    number_of_tiles,current_tile = args
+    config_file,number_of_tiles,current_tile = args
     
     dsm_dir = os.path.join(cfg['out_dir'],'dsm')
     out_dsm = os.path.join(dsm_dir,'dsm_%d.tif' % (current_tile) )
@@ -284,6 +284,15 @@ def compute_dsm(args):
     # horizontal cuts
     ymin = global_ymin + current_tile*tile_y_size
     ymax = ymin + tile_y_size #+ 2*cfg['dsm_radius']*cfg['dsm_resolution']
+    
+    # cutting info
+    x,y,w,h,z,ov,tw,th,nb_pairs = initialization.cutting(config_file)
+    range_y = np.arange(y, y + h - ov, th - ov)
+    range_x = np.arange(x, x + w - ov, tw - ov)
+    colmin, rowmin, tw, th = common.round_roi_to_nearest_multiple(z, range_x[0], range_y[0], tw, th)
+    colint, rowint, tw, th = common.round_roi_to_nearest_multiple(z, range_x[1], range_y[1], tw, th)
+    colmax, rowmax, tw, th = common.round_roi_to_nearest_multiple(z, range_x[-1], range_y[-1], tw, th)
+    cutsinf = '%d %d %d %d %d %d %d %d' % (rowmin,rowint-rowmin,rowmax,colmin,colint-colmin,colmax,tw,th)
     
     flags={}
     flags['average-orig']=0
@@ -300,17 +309,18 @@ def compute_dsm(args):
     pinterp = "-pinterp %d" % ( cfg['dsm_pinterp'] )
     
     if (ymax <= global_ymax):
-        common.run("plytodsm %s %s %s %f %s %s %f %f %f %f" % ( 
-                                                 flag,
-                                                 radius,
-                                                 pinterp,
-                                                 cfg['dsm_resolution'], 
-                                                 out_dsm, 
-                                                 list_of_tiles_dir,
-                                                 global_xmin,
-                                                 global_xmax,
-                                                 ymin,
-                                                 ymax))
+        common.run("plytodsm %s %s %s %f %s %f %f %f %f %s %s" % ( 
+                                                 flag,    #%s
+                                                 radius,  #%s
+                                                 pinterp, #%s
+                                                 cfg['dsm_resolution'], #%f
+                                                 out_dsm, #%s
+                                                 global_xmin, #%f
+                                                 global_xmax, #%f
+                                                 ymin, #%f
+                                                 ymax, #%f
+                                                 cutsinf, #%s
+                                                 cfg['out_dir'])) #%s
                                                  
                                              
 def global_finalization(tiles_full_info):
@@ -423,7 +433,7 @@ def execute_job(config_file,params):
         if step == 6:#"compute_dsm" :
             print 'compute_dsm ...'
             current_tile=int(tile_dir.split('_')[1]) # for instance, dsm_2 becomes 2
-            compute_dsm([cfg['dsm_nb_tiles'],current_tile])
+            compute_dsm([config_file,cfg['dsm_nb_tiles'],current_tile])
             
         if step == 7:#"global_finalization":    
             print 'global finalization...'     
@@ -482,6 +492,7 @@ def main(config_file, step=None, clusterMode=None, misc=None):
         step: integer between 1 and 5 specifying which step to run. Default
         value is None. In that case all the steps are run.
     """    
+    print_elapsed_time.t0 = datetime.datetime.now()
 
     print_elapsed_time.t0 = datetime.datetime.now()
 
@@ -497,7 +508,6 @@ def main(config_file, step=None, clusterMode=None, misc=None):
         # initialization (has to be done whatever the queried steps)
         initialization.init_dirs_srtm(config_file)
         tiles_full_info = initialization.init_tiles_full_info(config_file)
-        
 
         # multiprocessing setup
         nb_workers = multiprocessing.cpu_count()  # nb of available cores

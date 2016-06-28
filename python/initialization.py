@@ -157,54 +157,36 @@ def init_dirs_srtm(config_file):
     if not os.path.exists(cfg['out_dir']):
         os.makedirs(cfg['out_dir'])
 
-        if not os.path.exists( os.path.join(cfg['out_dir'],'dsm') ):
-            os.makedirs( os.path.join(cfg['out_dir'],'dsm') )
+    if not os.path.exists( os.path.join(cfg['out_dir'],'dsm') ):
+        os.makedirs( os.path.join(cfg['out_dir'],'dsm') )
 
-        if not os.path.exists(cfg['temporary_dir']):
-            os.makedirs(cfg['temporary_dir'])
+    if not os.path.exists(cfg['temporary_dir']):
+        os.makedirs(cfg['temporary_dir'])
 
-        if not os.path.exists(os.path.join(cfg['temporary_dir'], 'meta')):
-            os.makedirs(os.path.join(cfg['temporary_dir'], 'meta'))
-        f = open('%s/config.json' % cfg['out_dir'], 'w')
-        json.dump(cfg, f, indent=2)
-        f.close()
+    if not os.path.exists(os.path.join(cfg['temporary_dir'], 'meta')):
+        os.makedirs(os.path.join(cfg['temporary_dir'], 'meta'))
 
-        # duplicate stdout and stderr to log file
-        tee.Tee('%s/stdout.log' % cfg['out_dir'], 'w')
+    f = open('%s/config.json' % cfg['out_dir'], 'w')
+    json.dump(cfg, f, indent=2)
+    f.close()
 
-        # needed srtm tiles
-        srtm_tiles = srtm.list_srtm_tiles(cfg['images'][0]['rpc'],
-                                          *cfg['roi'].values())
-        for s in srtm_tiles:
-            srtm.get_srtm_tile(s, cfg['srtm_dir'])
+    # duplicate stdout and stderr to log file
+    tee.Tee('%s/stdout.log' % cfg['out_dir'], 'w')
+
+    # needed srtm tiles
+    srtm_tiles = srtm.list_srtm_tiles(cfg['images'][0]['rpc'],
+                                      *cfg['roi'].values())
+    for s in srtm_tiles:
+        srtm.get_srtm_tile(s, cfg['srtm_dir'])
 
 
-def init_tiles_full_info(config_file):
+def cutting(config_file):
     """
-    Prepare the entire process.
-
     1) Make sure coordinates of the ROI are multiples of the zoom factor
     2) Compute optimal size for tiles, get the number of pairs
-    3) Build tiles_full_info: a list of dictionaries, one per tile, providing all you need to process a tile
-       * col/row : position of the tile (upper left corner)
-       * tw/th : size of the tile
-       * ov : size of the overlapping
-       * i/j : relative position of the tile
-       * pos : position inside the ROI : UL for a tile place at th Upper Left corner, M for the ones placed in the middle, and so forth.
-       * x/y/w/h : information about the ROI
-       * images : a dictionary directly given by the json config file, that store the information about all the involved images, their rpc, and so forth.
-       * nb_pairs : number of pairs
-       * cld_msk/roi_msk : path to a gml file containing a cloud mask/ defining the area contained in the full image
-
-    Args:
-         config_file: path to a json configuration file
-
-    Returns:
-        tiles_full_info: list containing dictionaries
     """
-
     init_roi(config_file)
-
+    
     #Get ROI
     x = cfg['roi']['x']    
     y = cfg['roi']['y']
@@ -233,6 +215,33 @@ def init_tiles_full_info(config_file):
     print 'total number of tiles: %d (%d x %d)' % (nt, ntx, nty)
     nb_pairs = len(cfg['images']) - 1
     print 'total number of pairs: %d' % nb_pairs
+    
+    return (x,y,w,h,z,ov,tw,th,nb_pairs)
+
+
+def init_tiles_full_info(config_file):
+    """
+    Prepare the entire process.
+
+    Build tiles_full_info: a list of dictionaries, one per tile, providing all you need to process a tile
+       * col/row : position of the tile (upper left corner)
+       * tw/th : size of the tile
+       * ov : size of the overlapping
+       * i/j : relative position of the tile
+       * pos : position inside the ROI : UL for a tile place at th Upper Left corner, M for the ones placed in the middle, and so forth.
+       * x/y/w/h : information about the ROI
+       * images : a dictionary directly given by the json config file, that store the information about all the involved images, their rpc, and so forth.
+       * nb_pairs : number of pairs
+       * cld_msk/roi_msk : path to a gml file containing a cloud mask/ defining the area contained in the full image
+
+    Args:
+         config_file: path to a json configuration file
+
+    Returns:
+        tiles_full_info: list containing dictionaries
+    """
+
+    x,y,w,h,z,ov,tw,th,nb_pairs = cutting(config_file)
 
     # build tile_info dictionaries and store them in a list
     tiles_full_info = list()
@@ -240,6 +249,7 @@ def init_tiles_full_info(config_file):
     range_x = np.arange(x, x + w - ov, tw - ov)
     rowmin, rowmax = range_y[0], range_y[-1]
     colmin, colmax = range_x[0], range_x[-1]
+       
     for i, row in enumerate(range_y):
         for j, col in enumerate(range_x):
             # ensure that tile coordinates are multiples of the zoom factor
@@ -283,9 +293,5 @@ def init_tiles_full_info(config_file):
     if len(tiles_full_info) == 1:
         tiles_full_info[0]['position_type'] = 'Single'
 
-    cutting_info=open(os.path.join(cfg['out_dir'],'list_of_tiles.txt'),'w')
-    for tile_info in tiles_full_info:
-        cutting_info.write( '%s\n' % (tile_info['directory']))
-    cutting_info.close()
     
     return tiles_full_info
