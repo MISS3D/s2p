@@ -119,3 +119,7 @@ cfg['dsm_radius'] = 0
 
 # DSM interpolation parameter
 cfg['dsm_pinterp'] = 1
+
+# DSM minimum number of no-Nan cells around 
+# a cell to actually interpolate it
+cfg['dsm_min_nonan'] = 0

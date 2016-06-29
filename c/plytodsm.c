@@ -218,7 +218,7 @@ static void add_height_to_images(struct images *x, int i, int j, float v, Positi
     }
 }
 
-static void synth_heights(struct images *x, int i, int j, Position center_pos, int flag, int radius, float pinterp)
+static void synth_heights(struct images *x, int i, int j, Position center_pos, int flag, int radius, int minnonan, float pinterp)
 {
     uint64_t k = (uint64_t) x->w * j + i;
     
@@ -285,11 +285,14 @@ static void synth_heights(struct images *x, int i, int j, Position center_pos, i
     {
         double w;
         double sum=0.0,weighted_moy=0.0;
+	int found = 0;
         
         if (x->cnt[k]) // Do not interpolate
-            radius = 0;
+        {    
+	    radius = 0; // But still use the distances from the cell center to weight heights
+	    found = minnonan;
+	}
         
-        bool found = false;
         for(int ii=-radius; ii<=radius; ii++)
             for(int jj=-radius; jj<=radius; jj++)
             if ( (i+ii>=0) && (i+ii<x->w) && (j+jj>=0) && (j+jj<x->h) )
@@ -297,7 +300,7 @@ static void synth_heights(struct images *x, int i, int j, Position center_pos, i
                 uint64_t kt = (uint64_t) x->w * (j+jj) + i+ii;
                 if (x->cnt[kt])
                 {
-                    found = true;
+                    found++;
                     for(int t=0;t<x->cnt[kt];t++)
                     {
                         w = weight(x->pos[kt][t],center_pos,flag,pinterp);
@@ -306,7 +309,7 @@ static void synth_heights(struct images *x, int i, int j, Position center_pos, i
                     }
                 }
             }
-        if (found)
+        if (found>=minnonan)
             x->pixel_value[k] = weighted_moy/sum;
     }
 }
@@ -398,7 +401,9 @@ static void add_ply_points_to_images(struct images *x,
 void help(char *s)
 {
 	fprintf(stderr, "usage:\n\t"
-			"%s [-c column] [-flag] resolution out_dsm xmin xmax ymin ymax rowmin steprow rowmax colmin stepcol colmax tw th root_out_dir\n", s);
+			"%s [-c column] [-flag flag] [-radius radius] [-minnonan minnonan] [-param_inter param_inter] \
+			resolution out_dsm xmin xmax ymin ymax \
+			rowmin steprow rowmax colmin stepcol colmax tw th root_out_dir\n", s);
 	fprintf(stderr, "\t the resolution is in meters per pixel\n");
 }
 
@@ -409,6 +414,7 @@ int main(int c, char *v[])
 	int col_idx = atoi(pick_option(&c, &v, "c", "2"));
 	int flag = atoi(pick_option(&c, &v, "flag", "0"));
 	int radius = atoi(pick_option(&c, &v, "radius", "0"));
+	int minnonan = atoi(pick_option(&c, &v, "minnonan", "0"));
 	float param_inter = atof(pick_option(&c, &v, "pinterp", "1"));
 
 	// process input arguments
@@ -582,24 +588,24 @@ int main(int c, char *v[])
 		{
 		    center_pos.x=xmin+resolution/2.0 +(xmax-xmin)/( (float) w)*i;
 		    center_pos.y=-ymax+resolution/2.0 +(ymax-ymin)/( (float) h)*j;
-		    synth_heights(&x,i,j,center_pos,flag,radius,param_inter);
+		    synth_heights(&x,i,j,center_pos,flag,radius,minnonan,param_inter);
 		}
 	}
 
-    if ( (flag>=6) && (radius>0) )//interpolation, remove extra pixels due to neighboring
-    {
-        ymax = ymax_orig;
-        h = 1 + (ymax - ymin) / resolution;
-        float *ptr_realloc = (float *) realloc(x.pixel_value, (uint64_t) w*h * sizeof(float));
-        
-        if(ptr_realloc)
-            x.pixel_value = ptr_realloc;
-        else
-        {
-            fprintf(stderr, "ERROR : realloc failed\n");
-		    return 1;
-        }
-    }
+	if ( (flag>=6) && (radius>0) )//interpolation, remove extra pixels due to neighboring
+	{
+	    ymax = ymax_orig;
+	    h = 1 + (ymax - ymin) / resolution;
+	    float *ptr_realloc = (float *) realloc(x.pixel_value, (uint64_t) w*h * sizeof(float));
+	    
+	    if(ptr_realloc)
+		x.pixel_value = ptr_realloc;
+	    else
+	    {
+		fprintf(stderr, "ERROR : realloc failed\n");
+		return 1;
+	    }
+	}
 
 	// save output image
 	iio_save_image_float(out_dsm, x.pixel_value, w, h);

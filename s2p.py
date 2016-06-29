@@ -307,12 +307,14 @@ def compute_dsm(args):
     flag = "-flag %d" % ( flags.get(cfg['dsm_option'],0) )
     radius = "-radius %d" % ( cfg['dsm_radius'] )
     pinterp = "-pinterp %d" % ( cfg['dsm_pinterp'] )
+    minnonan = "-minnonan %d" % ( cfg['dsm_min_nonan'] )
     
     if (ymax <= global_ymax):
-        common.run("plytodsm %s %s %s %f %s %f %f %f %f %s %s" % ( 
+        common.run("plytodsm %s %s %s %s %f %s %f %f %f %f %s %s" % ( 
                                                  flag,    #%s
                                                  radius,  #%s
                                                  pinterp, #%s
+                                                 minnonan, #%s
                                                  cfg['dsm_resolution'], #%f
                                                  out_dsm, #%s
                                                  global_xmin, #%f
