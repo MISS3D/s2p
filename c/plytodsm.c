@@ -429,6 +429,9 @@ int main(int c, char *v[])
 	float xmax = atof(v[4]);
 	float ymin = atof(v[5]);
 	float ymax = atof(v[6]);
+	float xmin_orig=xmin;
+	float xmax_orig=xmax;
+	float ymin_orig=ymin;
 	float ymax_orig=ymax;
 	fprintf(stderr, "xmin: %20f, xmax: %20f, ymin: %20f, ymax: %20f\n", xmin,xmax,ymin,ymax);
 	int rowmin = atoi(v[7]);
@@ -443,6 +446,9 @@ int main(int c, char *v[])
 	
 	if (flag>=6) // interpolation
 	{
+	    xmin -= radius*resolution;
+	    xmax += radius*resolution;
+	    ymin -= radius*resolution;
 	    ymax += radius*resolution;
 	    fprintf(stderr, "interpolation --> xmin: %20f, xmax: %20f, ymin: %20f, ymax: %20f\n", xmin,xmax,ymin,ymax);
 	}
@@ -591,8 +597,89 @@ int main(int c, char *v[])
 		    synth_heights(&x,i,j,center_pos,flag,radius,minnonan,param_inter);
 		}
 	}
-
+	
+	// cleanup and exit (1)
+	free(x.cnt);
+	for (uint64_t i = 0; i < (uint64_t) w*h; i++)
+	    if (flag != 0)
+		{
+		    free(x.heights[i]);
+		    if (flag>=6) // interpolation
+			free(x.pos[i]);
+		}
+	free(x.heights);
+	free(x.pos);
+	
+	
 	if ( (flag>=6) && (radius>0) )//interpolation, remove extra pixels due to neighboring
+	{
+	    struct images x_cut;
+	    Position center_pos;
+	    Position center_pos_orig;
+	    
+	    int w_orig = 1 + (xmax_orig - xmin_orig) / resolution;
+	    int h_orig = 1 + (ymax_orig - ymin_orig) / resolution;
+	    x_cut.pixel_value = xmalloc((uint64_t) w_orig*h_orig*sizeof(float));
+	    
+	    
+
+	    for (int ii = 0; ii < w_orig; ii++)
+		for (int jj = 0; jj < h_orig; jj++)
+		{
+		    center_pos_orig.x=xmin_orig+resolution/2.0 +(xmax_orig-xmin_orig)/( (float) w_orig)*ii;
+		    center_pos_orig.y=-ymax_orig+resolution/2.0 +(ymax_orig-ymin_orig)/( (float) h_orig)*jj;
+		    
+		    uint64_t k_orig = (uint64_t) w_orig * jj + ii;
+		    
+		    double d2_min=1e6;
+		    
+		    int iic = (int) ((center_pos_orig.x-xmin-resolution/2.0)*w/(xmax-xmin)+0.5);
+		    int jjc = (int) ((center_pos_orig.y+ymax-resolution/2.0)*h/(ymax-ymin)+0.5);
+		    int iii,jjj;
+		    for (int i = iic-1; i <= iic+1; i++)
+			for (int j = jjc-1; j <= jjc+1; j++)
+			{
+			    center_pos.x=xmin+resolution/2.0 +(xmax-xmin)/( (float) w)*i;
+			    center_pos.y=-ymax+resolution/2.0 +(ymax-ymin)/( (float) h)*j;
+				    
+			    double d2 = pow(center_pos.x-center_pos_orig.x,2.0)+pow(center_pos.y-center_pos_orig.y,2.0);
+			    
+			    if (d2<d2_min)
+			    {
+				uint64_t k = (uint64_t) w * j + i;
+				
+				if (k < (uint64_t) w*h)
+				{
+				    x_cut.pixel_value[k_orig] = x.pixel_value[k];
+				    d2_min=d2;
+				    iii=i;
+				    jjj=j;
+				}
+			    }
+			}
+		    if ( (iii!=iic) && (jjj!=jjc) )
+			fprintf(stderr,"bavard %d %d\n",iic-iii,jjc-jjj);
+		}
+	    
+	    // save output image
+	    iio_save_image_float(out_dsm, x_cut.pixel_value, w_orig, h_orig);
+	    set_geotif_header(out_dsm, utm, xmin_orig, ymax_orig, resolution);
+	    
+	    // cleanup and exit (2)
+	    free(x.pixel_value);
+	    free(x_cut.pixel_value);
+	    
+	}
+	else
+	{
+	    // save output image
+	    iio_save_image_float(out_dsm, x.pixel_value, w, h);
+	    set_geotif_header(out_dsm, utm, xmin, ymax, resolution);
+	    
+	    // cleanup and exit (2)
+	    free(x.pixel_value);
+	}
+	/*if ( (flag>=6) && (radius>0) )//interpolation, remove extra pixels due to neighboring
 	{
 	    ymax = ymax_orig;
 	    h = 1 + (ymax - ymin) / resolution;
@@ -605,24 +692,7 @@ int main(int c, char *v[])
 		fprintf(stderr, "ERROR : realloc failed\n");
 		return 1;
 	    }
-	}
+	}*/
 
-	// save output image
-	iio_save_image_float(out_dsm, x.pixel_value, w, h);
-	set_geotif_header(out_dsm, utm, xmin, ymax, resolution);
-
-	// cleanup and exit
-	free(x.cnt);
-	free(x.pixel_value);
-	for (uint64_t i = 0; i < (uint64_t) w*h; i++)
-	    if (flag != 0)
-		{
-		    free(x.heights[i]);
-		    if (flag>=6) // interpolation
-			free(x.pos[i]);
-		}
-	free(x.heights);
-	free(x.pos);
-	    
 	return 0;
 }
