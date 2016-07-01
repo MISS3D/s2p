@@ -22,95 +22,95 @@
 // WGS84 / UTM southern hemisphere: 327zz where zz is UTM zone number
 // http://www.remotesensing.org/geotiff/spec/geotiff6.html#6.3.3.1
 static int get_utm_zone_index_for_geotiff(char *utm_zone)
-{	
-	int out = 32000;
-	if (utm_zone[2] == 'N')
-		out += 600;
-	else if (utm_zone[2] == 'S')
-		out += 700;
-	else
-		fprintf(stderr, "error: bad utm zone value: %s\n", utm_zone);
-	utm_zone[2] = '\0';
-	out += atoi(utm_zone);
-	return out;
+{
+    int out = 32000;
+    if (utm_zone[2] == 'N')
+        out += 600;
+    else if (utm_zone[2] == 'S')
+        out += 700;
+    else
+        fprintf(stderr, "error: bad utm zone value: %s\n", utm_zone);
+    utm_zone[2] = '\0';
+    out += atoi(utm_zone);
+    return out;
 }
 
 void set_geotif_header(char *tiff_fname, char *utm_zone, float xoff,
-		float yoff, float scale)
+        float yoff, float scale)
 {
-	// open tiff file
-	TIFF *tif = XTIFFOpen(tiff_fname, "r+");
-	if (!tif)
-		fail("failed in XTIFFOpen\n");
+    // open tiff file
+    TIFF *tif = XTIFFOpen(tiff_fname, "r+");
+    if (!tif)
+        fail("failed in XTIFFOpen\n");
 
-	GTIF *gtif = GTIFNew(tif);
-	if (!gtif)
-		fail("failed in GTIFNew\n");
+    GTIF *gtif = GTIFNew(tif);
+    if (!gtif)
+        fail("failed in GTIFNew\n");
 
-	// write TIFF tags
-	double pixsize[3] = {scale, scale, 0.0};
-	TIFFSetField(tif, GTIFF_PIXELSCALE, 3, pixsize);
+    // write TIFF tags
+    double pixsize[3] = {scale, scale, 0.0};
+    TIFFSetField(tif, GTIFF_PIXELSCALE, 3, pixsize);
 
-	double tiepoint[6] = {0.0, 0.0, 0.0, xoff, yoff, 0.0};
-	TIFFSetField(tif, GTIFF_TIEPOINTS, 6, tiepoint);
+    double tiepoint[6] = {0.0, 0.0, 0.0, xoff, yoff, 0.0};
+    TIFFSetField(tif, GTIFF_TIEPOINTS, 6, tiepoint);
 
-	// write GEOTIFF keys
-	int utm_ind = get_utm_zone_index_for_geotiff(utm_zone);
-	GTIFKeySet(gtif, ProjectedCSTypeGeoKey, TYPE_SHORT, 1, utm_ind);
-	GTIFWriteKeys(gtif);
+    // write GEOTIFF keys
+    int utm_ind = get_utm_zone_index_for_geotiff(utm_zone);
+    GTIFKeySet(gtif, ProjectedCSTypeGeoKey, TYPE_SHORT, 1, utm_ind);
+    GTIFWriteKeys(gtif);
 
-	// free and close
-	GTIFFree(gtif);
-	XTIFFClose(tif);
+    // free and close
+    GTIFFree(gtif);
+    XTIFFClose(tif);
 }
 
 
 
 struct ply_property {
-	enum {UCHAR,FLOAT,DOUBLE,UNKNOWN} type;
-	char name[0x100];
-	size_t len;
+    enum {UCHAR,FLOAT,DOUBLE,UNKNOWN} type;
+    char name[0x100];
+    size_t len;
 };
 
 static bool parse_property_line(struct ply_property *t, char *buf)
 {
-	char typename[0x100];
-	bool r = 2 == sscanf(buf, "property %s %s\n", typename, t->name);
-	t->type = UNKNOWN;
-	if (0 == strcmp(typename, "uchar")) { t->type = UCHAR;  t->len = 1;}
-	if (0 == strcmp(typename, "float")) { t->type = FLOAT;  t->len = 4;}
-	if (0 == strcmp(typename, "double")){ t->type = DOUBLE; t->len = 8;}
-	return r;
+    char typename[0x100];
+    bool r = 2 == sscanf(buf, "property %s %s\n", typename, t->name);
+    t->type = UNKNOWN;
+    if (0 == strcmp(typename, "uchar")) { t->type = UCHAR;  t->len = 1;}
+    if (0 == strcmp(typename, "float")) { t->type = FLOAT;  t->len = 4;}
+    if (0 == strcmp(typename, "double")){ t->type = DOUBLE; t->len = 8;}
+    return r;
 }
 
 
 
 // fast forward "f" until "end_header" is found
-// returns the number of 'properties' 
-// the array of structures *t, contains the names and sizes 
+// returns the number of 'properties'
+// the array of structures *t, contains the names and sizes
 // the properties in bytes, isbin is set if binary encoded
 // and reads the utm zone
-static size_t header_get_record_length_and_utm_zone(FILE *f_in, char *utm, 
-		int *isbin, struct ply_property *t)
+static size_t header_get_record_length_and_utm_zone(FILE *f_in, char *utm,
+        int *isbin, struct ply_property *t)
 {
-	size_t n = 0;
-	*isbin = 0;
+    size_t n = 0;
+    *isbin = 0;
 
-	char buf[FILENAME_MAX] = {0};
-	while (fgets(buf, FILENAME_MAX, f_in)) {
-		if (0 == strcmp(buf, "format binary_little_endian 1.0\n")) *isbin=1;
-		else if (0 == strcmp(buf, "format ascii 1.0\n")) *isbin=0;
-		else {
-			if (parse_property_line(t+n, buf))
-				n += 1;
-			else if (0 == strncmp(buf, "comment projection:", 19)) {
-				sscanf(buf, "comment projection: UTM %s", utm);
-			}
-		}
-		if (0 == strcmp(buf, "end_header\n"))
-			break;
-	}
-	return n;
+    char buf[FILENAME_MAX] = {0};
+    while (fgets(buf, FILENAME_MAX, f_in)) {
+        if (0 == strcmp(buf, "format binary_little_endian 1.0\n")) *isbin=1;
+        else if (0 == strcmp(buf, "format ascii 1.0\n")) *isbin=0;
+        else {
+            if (parse_property_line(t+n, buf))
+                n += 1;
+            else if (0 == strncmp(buf, "comment projection:", 19)) {
+                sscanf(buf, "comment projection: UTM %s", utm);
+            }
+        }
+        if (0 == strcmp(buf, "end_header\n"))
+            break;
+    }
+    return n;
 }
 
 
@@ -118,11 +118,11 @@ static size_t header_get_record_length_and_utm_zone(FILE *f_in, char *utm,
 // re-scale a float between 0 and w
 static int rescale_float_to_int(double x, double min, double max, int w, bool *flag)
 {
-	*flag=1;
-	int r = w * (x - min)/(max - min);
-	if (r < 0) *flag=0;
-	if (r >= w) *flag=0;
-	return r;
+    *flag=1;
+    int r = w * (x - min)/(max - min);
+    if (r < 0) *flag=0;
+    if (r >= w) *flag=0;
+    return r;
 }
 
 
@@ -142,7 +142,7 @@ struct images {
 // Help to sort tabs of float
 int compare (const void * a, const void * b)
 {
-  return ( *(float*)a - *(float*)b );
+    return *(float *) a - *(float *) b;
 }
 
 double weight(Position pos, Position center_pos, unsigned int flag,float pinterp)
@@ -168,7 +168,6 @@ double weight(Position pos, Position center_pos, unsigned int flag,float pinterp
 static void add_height_to_images(struct images *x, int i, int j, float v, Position pos, int flag)
 {
     uint64_t k = (uint64_t) x->w * j + i;
-    
     switch (flag) 
     {
 	case 0: // nominal case
@@ -315,41 +314,41 @@ static void synth_heights(struct images *x, int i, int j, Position center_pos, i
 }
 
 int get_record(FILE *f_in, int isbin, struct ply_property *t, int n, double *data){
-	int rec = 0;
-	if(isbin) {
-		for (int i = 0; i < n; i++) {
-			switch(t[i].type) {
-				case UCHAR: {
-						    unsigned char X;
-						    rec += fread(&X, 1, 1, f_in);
-						    data[i] = X;
-						    break; }
-				case FLOAT: {
-						    float X;
-						    rec += fread(&X, sizeof(float), 1, f_in);
-						    data[i] = X;
-						    break; }
-				case DOUBLE: {
-						     double X;
-						     rec += fread(&X, sizeof(double), 1, f_in);
-						     data[i] = X;
-						     break; }
-			}
-		}
-	} else {
-		int i=0;
-		while (i < n && !feof(f_in)) {
-			rec += fscanf(f_in,"%lf", &data[i]);  i++;
-		}
-	}
-	return rec;
+    int rec = 0;
+    if(isbin) {
+        for (int i = 0; i < n; i++) {
+            switch(t[i].type) {
+                case UCHAR: {
+                            unsigned char X;
+                            rec += fread(&X, 1, 1, f_in);
+                            data[i] = X;
+                            break; }
+                case FLOAT: {
+                            float X;
+                            rec += fread(&X, sizeof(float), 1, f_in);
+                            data[i] = X;
+                            break; }
+                case DOUBLE: {
+                             double X;
+                             rec += fread(&X, sizeof(double), 1, f_in);
+                             data[i] = X;
+                             break; }
+            }
+        }
+    } else {
+        int i=0;
+        while (i < n && !feof(f_in)) {
+            rec += fscanf(f_in,"%lf", &data[i]);  i++;
+        }
+    }
+    return rec;
 }
 
 
 // open a ply file, and accumulate its points to the image
 static void add_ply_points_to_images(struct images *x,
-		float xmin, float xmax, float ymin, float ymax,
-		char utm_zone[3], char *fname, int col_idx, unsigned int flag)
+        float xmin, float xmax, float ymin, float ymax,
+        char utm_zone[3], char *fname, int col_idx, unsigned int flag)
 {
 	FILE *f = fopen(fname, "r");
 	if (!f) {
@@ -367,7 +366,6 @@ static void add_ply_points_to_images(struct images *x,
 
 	if (col_idx < 2 || col_idx > 5)
 		exit(fprintf(stderr, "error: bad col_idx %d\n", col_idx));
-
 
 	double data[n];
 	double center_x,center_y,d;
@@ -393,18 +391,17 @@ static void add_ply_points_to_images(struct images *x,
 		    }
 		}
 	}
-
 	fclose(f);
 }
 
 
 void help(char *s)
 {
-	fprintf(stderr, "usage:\n\t"
-			"%s [-c column] [-flag flag] [-radius radius] [-minnonan minnonan] [-param_inter param_inter] \
-			resolution out_dsm xmin xmax ymin ymax \
-			rowmin steprow rowmax colmin stepcol colmax tw th root_out_dir\n", s);
-	fprintf(stderr, "\t the resolution is in meters per pixel\n");
+    fprintf(stderr, "usage:\n\t"
+		    "%s [-c column] [-flag flag] [-radius radius] [-minnonan minnonan] [-param_inter param_inter] \
+		    resolution out_dsm xmin xmax ymin ymax \
+		    rowmin steprow rowmax colmin stepcol colmax tw th root_out_dir\n", s);
+    fprintf(stderr, "\t the resolution is in meters per pixel\n");
 }
 
 #include "pickopt.c"
@@ -656,6 +653,5 @@ int main(int c, char *v[])
 	    // cleanup and exit (2)
 	    free(x.pixel_value);
 	}
-
 	return 0;
 }

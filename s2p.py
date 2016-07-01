@@ -29,7 +29,6 @@ import multiprocessing
 
 from python.config import cfg
 from python import common
-from python import rpc_utils
 from python import initialization
 from python import preprocess
 from python import globalvalues
@@ -135,8 +134,6 @@ def process_tile_pair(tile_info, pair_id):
     tile_dir = tile_info['directory']
     col, row, tw, th = tile_info['coordinates']
     images = cfg['images']
-    cld_msk = cfg['images'][0]['cld']
-    roi_msk = cfg['images'][0]['roi']
 
     img1, rpc1 = images[0]['img'], images[0]['rpc']
     img2, rpc2 = images[pair_id]['img'], images[pair_id]['rpc']
@@ -164,8 +161,7 @@ def process_tile_pair(tile_info, pair_id):
     else:
         print '\trectifying tile %d %d (pair %d)...' % (col, row, pair_id)
         process.rectify(out_dir, np.loadtxt(A_global), img1, rpc1,
-                        img2, rpc2, col, row, tw, th, None, cld_msk,
-                        roi_msk)
+                        img2, rpc2, col, row, tw, th, None)
 
     # disparity estimation
     if (cfg['skip_existing'] and
@@ -175,7 +171,7 @@ def process_tile_pair(tile_info, pair_id):
     else:
         print '\testimating disparity on tile %d %d (pair %d)...' % (col, row, pair_id)
         process.disparity(out_dir, img1, rpc1, img2, rpc2, col, row,
-                          tw, th, None, cld_msk, roi_msk)
+                          tw, th, None)
 
     # triangulation
     if (cfg['skip_existing'] and
@@ -184,11 +180,10 @@ def process_tile_pair(tile_info, pair_id):
     else:
         print '\ttriangulating tile %d %d (pair %d)...' % (col, row, pair_id)
         process.triangulate(out_dir, img1, rpc1, img2, rpc2, col,
-                            row, tw, th, None, cld_msk, roi_msk,
-                            np.loadtxt(A_global))
+                            row, tw, th, None, np.loadtxt(A_global))
 
 
-def process_tile(tile_info, utm_zone=None):
+def process_tile(tile_info):
     """
     Process a tile by merging the height maps computed for each image pair.
 
@@ -219,7 +214,7 @@ def process_tile(tile_info, utm_zone=None):
         for i in xrange(nb_pairs):
             if not os.path.isfile(os.path.join(tile_dir, 'pair_%d' % (i+1), 'this_tile_is_masked.txt')):
                 height_maps.append(os.path.join(tile_dir, 'pair_%d' % (i+1), 'height_map.tif'))
-        process.finalize_tile(tile_info, height_maps, utm_zone)
+        process.finalize_tile(tile_info, height_maps, cfg['utm_zone'])
         
         # ply extrema
         common.run("plyextrema {} {}".format(tile_dir, os.path.join(tile_dir, 'plyextrema.txt')))
@@ -241,21 +236,19 @@ def global_extent(tiles_full_info):
     """
     Compute the global extent from the extrema of each ply file
     """
-    xmin,xmax,ymin,ymax = float('inf'),-float('inf'),float('inf'),-float('inf')
+    xmin, xmax, ymin, ymax = float('inf'), -float('inf'), float('inf'), -float('inf')
     
     for tile in tiles_full_info:
-        plyextrema_file = os.path.join(tile['directory'],
-                                         'plyextrema.txt')
+        plyextrema_file = os.path.join(tile['directory'], 'plyextrema.txt')
                                          
         if (os.path.exists(plyextrema_file)):
             extremaxy = np.loadtxt(plyextrema_file)
-                
-            xmin=min(xmin,extremaxy[0])
-            xmax=max(xmax,extremaxy[1])
-            ymin=min(ymin,extremaxy[2])
-            ymax=max(ymax,extremaxy[3])
+            xmin = min(xmin, extremaxy[0])
+            xmax = max(xmax, extremaxy[1])
+            ymin = min(ymin, extremaxy[2])
+            ymax = max(ymax, extremaxy[3])
         
-    global_extent = [xmin,xmax,ymin,ymax]
+    global_extent = [xmin, xmax, ymin, ymax]
     np.savetxt(os.path.join(cfg['out_dir'], 'global_extent.txt'), global_extent,
                fmt='%6.3f') 
 
@@ -286,13 +279,13 @@ def compute_dsm(args):
     ymax = ymin + tile_y_size #+ 2*cfg['dsm_radius']*cfg['dsm_resolution']
     
     # cutting info
-    x,y,w,h,z,ov,tw,th,nb_pairs = initialization.cutting(config_file)
+    x, y, w, h, z, ov, tw, th, nb_pairs = initialization.cutting(config_file)
     range_y = np.arange(y, y + h - ov, th - ov)
     range_x = np.arange(x, x + w - ov, tw - ov)
     colmin, rowmin, tw, th = common.round_roi_to_nearest_multiple(z, range_x[0], range_y[0], tw, th)
     colint, rowint, tw, th = common.round_roi_to_nearest_multiple(z, range_x[1], range_y[1], tw, th)
     colmax, rowmax, tw, th = common.round_roi_to_nearest_multiple(z, range_x[-1], range_y[-1], tw, th)
-    cutsinf = '%d %d %d %d %d %d %d %d' % (rowmin,rowint-rowmin,rowmax,colmin,colint-colmin,colmax,tw,th)
+    cutsinf = '%d %d %d %d %d %d %d %d' % (rowmin, rowint-rowmin, rowmax, colmin, colint - colmin, colmax, tw, th)
     
     flags={}
     flags['average-orig']=0
@@ -354,6 +347,7 @@ def global_finalization(tiles_full_info):
     # copy RPC xml files in the output directory
     for img in cfg['images']:
         shutil.copy2(img['rpc'], cfg['out_dir'])       
+
 
 def launch_parallel_calls(fun, list_of_args, nb_workers, extra_args=None):
     """
@@ -535,11 +529,7 @@ def main(config_file, step=None, clusterMode=None, misc=None):
         if 4 in steps:
             print '\nprocessing tiles...'
             show_progress.total = len(tiles_full_info)
-            utm_zone = rpc_utils.utm_zone(cfg['images'][0]['rpc'],
-                                          *[cfg['roi'][v] for v in ['x', 'y',
-                                                                    'w', 'h']])
-            launch_parallel_calls(process_tile, tiles_full_info, nb_workers,
-                                  extra_args=(utm_zone,))
+            launch_parallel_calls(process_tile, tiles_full_info, nb_workers)
             print_elapsed_time()
            
         if 5 in steps:
