@@ -25,16 +25,16 @@ def color_crop_ref(tile_info, crop_ref, clr=None):
     Colorizations of a crop_ref (for a given tile)
 
     Args:
-        tile_info: a dictionary that provides all you need to process a tile
-        clr (optional): if crop_ref is a pan image, will perform the pansharpening with the color image clr
+    tile_info: a dictionary that provides all you need to process a tile
+    clr (optional): if crop_ref is a pan image, will perform the pansharpening with the color image clr
 
-        If clr is None then:
-            case 1: tile is an RGBI image, so removes I channel, and perform rescaling of the remaining channels
-            case 2: tile is already an RGB image, so just perform rescaling
+    If clr is None then:
+    case 1: tile is an RGBI image, so removes I channel, and perform rescaling of the remaining channels
+    case 2: tile is already an RGB image, so just perform rescaling
 
-        Note that if rescaling is already performed, then the file applied_minmax.txt exists:
-            if applied_minmax.txt exists and cfg['skip_existing'] is True, rescaling won't be performed again
-            if applied_minmax.txt exists and is different from global_minmax, rescaling will be compulsorily performed (can occur if a new tile is added)
+    Note that if rescaling is already performed, then the file applied_minmax.txt exists:
+    if applied_minmax.txt exists and cfg['skip_existing'] is True, rescaling won't be performed again
+    if applied_minmax.txt exists and is different from global_minmax, rescaling will be compulsorily performed (can occur if a new tile is added)
     """
     # get info
     x, y, w, h = tile_info['coordinates']
@@ -90,11 +90,11 @@ def color_crop_ref(tile_info, crop_ref, clr=None):
 def generate_cloud(tile_info, do_offset=False, utm_zone=None):
     """
     Args:
-        tile_info: a dictionary that provides all you need to process a tile
-        do_offset (optional, default: False): boolean flag to decide wether the
-            x, y coordinates of points in the ply file will be translated or not
-            (translated to be close to 0, to avoid precision loss due to huge
-            numbers)
+    tile_info: a dictionary that provides all you need to process a tile
+    do_offset (optional, default: False): boolean flag to decide wether the
+    x, y coordinates of points in the ply file will be translated or not
+    (translated to be close to 0, to avoid precision loss due to huge
+    numbers)
     """
     print "\nComputing point cloud..."
 
@@ -148,13 +148,13 @@ def merge_height_maps(height_maps, tile_dir, thresh, conservative, k=1, garbage=
     Merges a list of height maps recursively, computed for one tile from N image pairs.
 
     Args :
-         - height_maps : list of height map directories
-         - tile_dir : directory of the tile from which to get a merged height map
-         - thresh : threshold used for the fusion algorithm, in meters.
-         - conservative (optional, default is False): if True, keep only the
-            pixels where the two height map agree (fusion algorithm)
-         - k : used to identify the current call of merge_height_maps (default = 1, first call)
-         - garbage : a list used to remove temp data (default = [], first call)
+    - height_maps : list of height map directories
+    - tile_dir : directory of the tile from which to get a merged height map
+    - thresh : threshold used for the fusion algorithm, in meters.
+    - conservative (optional, default is False): if True, keep only the
+    pixels where the two height map agree (fusion algorithm)
+    - k : used to identify the current call of merge_height_maps (default = 1, first call)
+    - garbage : a list used to remove temp data (default = [], first call)
 
     """
 
@@ -195,8 +195,8 @@ def finalize_tile(tile_info, height_maps, utm_zone=None):
     (colorization is not mandatory)
 
     Args:
-        tile_info: a dictionary that provides all you need to process a tile
-        height_maps: list of the height maps generated from N pairs
+    tile_info: a dictionary that provides all you need to process a tile
+    height_maps: list of the height maps generated from N pairs
     """
     # get info
     tile_dir = tile_info['directory']
@@ -244,7 +244,7 @@ def finalize_tile(tile_info, height_maps, utm_zone=None):
     w = w / z + difftw
     h = h / z + diffth
     tile_info['coordinates'] = (x, y, w, h)
-    
+
     # z=1 beacause local_merged_height_map, crop_ref (and so forth) have
     # already been zoomed. So don't zoom again to crop these images.
     if not (os.path.isfile(local_merged_height_map_crop) and cfg['skip_existing']):
@@ -277,20 +277,20 @@ def rectify(out_dir, A_global, img1, rpc1, img2, rpc2, x=None, y=None,
     Computes rectifications, without tiling
 
     Args:
-        out_dir: path to the output directory
-        img1: path to the reference image.
-        rpc1: paths to the xml file containing the rpc coefficients of the
-            reference image
-        img2: path to the secondary image.
-        rpc2: paths to the xml file containing the rpc coefficients of the
-            secondary image
-        x, y, w, h: four integers defining the rectangular ROI in the reference
-            image. (x, y) is the top-left corner, and (w, h) are the dimensions
-            of the rectangle.
-        prv1 (optional): path to a preview of the reference image.
+    out_dir: path to the output directory
+    img1: path to the reference image.
+    rpc1: paths to the xml file containing the rpc coefficients of the
+    reference image
+    img2: path to the secondary image.
+    rpc2: paths to the xml file containing the rpc coefficients of the
+    secondary image
+    x, y, w, h: four integers defining the rectangular ROI in the reference
+    image. (x, y) is the top-left corner, and (w, h) are the dimensions
+    of the rectangle.
+    prv1 (optional): path to a preview of the reference image.
 
     Returns:
-        nothing
+    nothing
     """
     # output files
     rect1 = '%s/rectified_ref.tif' % (out_dir)
@@ -334,24 +334,24 @@ def disparity(out_dir, img1, rpc1, img2, rpc2, x=None, y=None,
     Computes a disparity map from a Pair of Pleiades images, without tiling
 
     Args:
-        out_dir: path to the output directory
-        img1: path to the reference image.
-        rpc1: paths to the xml file containing the rpc coefficients of the
-            reference image
-        img2: path to the secondary image.
-        rpc2: paths to the xml file containing the rpc coefficients of the
-            secondary image
-        x, y, w, h: four integers defining the rectangular ROI in the reference
-            image. (x, y) is the top-left corner, and (w, h) are the dimensions
-            of the rectangle.
-        prv1 (optional): path to a preview of the reference image
-        cld_msk (optional): path to a gml file containing a cloud mask
-        roi_msk (optional): path to a gml file containing a mask defining the
-            area contained in the full image
-        wat_msk (optional): path to a tiff file containing a water mask.
+    out_dir: path to the output directory
+    img1: path to the reference image.
+    rpc1: paths to the xml file containing the rpc coefficients of the
+    reference image
+    img2: path to the secondary image.
+    rpc2: paths to the xml file containing the rpc coefficients of the
+    secondary image
+    x, y, w, h: four integers defining the rectangular ROI in the reference
+    image. (x, y) is the top-left corner, and (w, h) are the dimensions
+    of the rectangle.
+    prv1 (optional): path to a preview of the reference image
+    cld_msk (optional): path to a gml file containing a cloud mask
+    roi_msk (optional): path to a gml file containing a mask defining the
+    area contained in the full image
+    wat_msk (optional): path to a tiff file containing a water mask.
 
     Returns:
-        nothing
+    nothing
     """
     # output files
     rect1 = '%s/rectified_ref.tif' % (out_dir)
@@ -402,21 +402,21 @@ def triangulate(out_dir, img1, rpc1, img2, rpc2, x=None, y=None,
     Computes triangulations, without tiling
 
     Args:
-        out_dir: path to the output directory
-        img1: path to the reference image.
-        rpc1: paths to the xml file containing the rpc coefficients of the
-            reference image
-        img2: path to the secondary image.
-        rpc2: paths to the xml file containing the rpc coefficients of the
-            secondary image
-        x, y, w, h: four integers defining the rectangular ROI in the reference
-            image. (x, y) is the top-left corner, and (w, h) are the dimensions
-            of the rectangle.
-        prv1 (optional): path to a preview of the reference image
-        A (optional, default None): pointing correction matrix.
+    out_dir: path to the output directory
+    img1: path to the reference image.
+    rpc1: paths to the xml file containing the rpc coefficients of the
+    reference image
+    img2: path to the secondary image.
+    rpc2: paths to the xml file containing the rpc coefficients of the
+    secondary image
+    x, y, w, h: four integers defining the rectangular ROI in the reference
+    image. (x, y) is the top-left corner, and (w, h) are the dimensions
+    of the rectangle.
+    prv1 (optional): path to a preview of the reference image
+    A (optional, default None): pointing correction matrix.
 
     Returns:
-        nothing
+    nothing
     """
     # output files
     disp = '%s/rectified_disp.tif' % (out_dir)
