@@ -7,6 +7,7 @@
 import numpy as np
 from config import cfg
 import os
+import shutil
 import sys
 import multiprocessing
 
@@ -19,7 +20,7 @@ from python import rectification
 from python import masking
 
 
-def color_crop_ref(tile_info, clr=None):
+def color_crop_ref(tile_info, crop_ref, clr=None):
     """
     Colorizations of a crop_ref (for a given tile)
 
@@ -41,7 +42,6 @@ def color_crop_ref(tile_info, clr=None):
     z = cfg['subsampling_factor']
 
     # paths
-    crop_ref = tile_dir + '/roi_ref_crop.tif'
     global_minmax = cfg['out_dir'] + '/global_minmax.txt'
     applied_minmax = tile_dir + '/applied_minmax.txt'
 
@@ -222,7 +222,8 @@ def finalize_tile(tile_info, height_maps, utm_zone=None):
     local_merged_height_map = tile_dir + '/local_merged_height_map.tif'
     local_merged_height_map_crop = tile_dir + '/local_merged_height_map_crop.tif'
     crop_ref = tile_dir + '/roi_ref.tif'
-    crop_ref_crop = tile_dir + '/roi_ref_crop.tif'
+    crop_ref_crop = common.tmpfile(".tif")
+    shutil.copy(crop_ref_crop, os.path.join(tile_dir,'roi_ref_crop.tif') )
 
     dicoPos = {}
     dicoPos['M'] = [ov / 2, ov / 2, -ov, -ov]
@@ -264,7 +265,7 @@ def finalize_tile(tile_info, height_maps, utm_zone=None):
         if not (os.path.isfile(single_rpc_err_crop) and cfg['skip_existing']):
             common.cropImage(single_rpc_err, single_rpc_err_crop, newcol, newrow, w, h)
     # colors
-    color_crop_ref(tile_info, cfg['images'][0]['clr'])
+    color_crop_ref(tile_info, crop_ref_crop, cfg['images'][0]['clr'])
 
     # generate cloud
     generate_cloud(tile_info, cfg['offset_ply'], utm_zone)
