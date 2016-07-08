@@ -113,3 +113,13 @@ cfg['srtm_dir'] = os.path.join(parent_dir, '.srtm')
 
 # DSM options
 cfg['dsm_option'] = 'median'
+
+# DSM interpolation radius size
+cfg['dsm_radius'] = 0
+
+# DSM interpolation parameter
+cfg['dsm_pinterp'] = 1
+
+# DSM minimum number of no-Nan cells around 
+# a cell to actually interpolate it
+cfg['dsm_min_nonan'] = 0

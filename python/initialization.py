@@ -223,7 +223,7 @@ def cutting(config_file):
     nb_pairs = len(cfg['images']) - 1
     print 'total number of pairs: %d' % nb_pairs
     
-    return x, y, w, h, z, ov, tw, th, nb_pairs
+    return (x, y, w, h, z, ov, tw, th, nb_pairs)
 
 
 def init_tiles_full_info(config_file):
