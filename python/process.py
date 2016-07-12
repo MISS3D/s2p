@@ -245,13 +245,12 @@ def finalize_tile(tile_info, height_maps, utm_zone=None):
     h = h / z + diffth
     tile_info['coordinates'] = (x, y, w, h)
 
-    # z=1 beacause local_merged_height_map, crop_ref (and so forth) have
+    # z=1 because local_merged_height_map, crop_ref (and so forth) have
     # already been zoomed. So don't zoom again to crop these images.
     if not (os.path.isfile(local_merged_height_map_crop) and cfg['skip_existing']):
         common.cropImage(local_merged_height_map, local_merged_height_map_crop,
                          newcol, newrow, w, h)
-    if not (os.path.isfile(crop_ref_crop) and cfg['skip_existing']):
-        common.cropImage(crop_ref, crop_ref_crop, newcol, newrow, w, h)
+    common.cropImage(crop_ref, crop_ref_crop, newcol, newrow, w, h)
 
     # by pair
     for i in range(1, nb_pairs + 1):
