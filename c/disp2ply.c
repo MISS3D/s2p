@@ -106,7 +106,7 @@ void intersect_rays(double out[3], double p[2], double q[2], struct rpc *r1,
 {
     // compute height
     double err;
-    out[2] = rpc_height(r1, r2, p[0], p[1], q[0], q[1], &err);
+    out[2] = rpc_height_alg(r1, r2, p[0], p[1], q[0], q[1], &err);
 
     // compute lon, lat
     eval_rpc(out, r1, p[0], p[1], out[2]);

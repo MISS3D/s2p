@@ -88,9 +88,20 @@ int main_disp_to_h(int c, char *v[])
     }
 
     // read input data
-    struct rpc rpca[1], rpcb[1];
-    read_rpc_file_xml(rpca, v[1]);
-    read_rpc_file_xml(rpcb, v[2]);
+    struct rpc *rpc_list;
+    int N_rpc = 2;
+    rpc_list = (struct rpc *) malloc(N_rpc*sizeof( struct rpc  ));
+    
+    double **q_list;
+    q_list = (double **) malloc(N_rpc*sizeof( double * ));
+    for(int i=0; i<N_rpc; i++)
+    {
+        q_list[i] = (double *) malloc(3*sizeof( double ));
+    }
+    
+    
+    read_rpc_file_xml(&rpc_list[0], v[1]);
+    read_rpc_file_xml(&rpc_list[1], v[2]);
     double Ha[3][3], Hb[3][3];
     read_matrix(Ha, v[3]);
     read_matrix(Hb, v[4]);
@@ -128,17 +139,22 @@ int main_disp_to_h(int c, char *v[])
                 double q0[3], q1[3];
 //                double groundCoords[2], groundCoordsPlus10[2],
 //                       groundCoordsNorm[3];
-                double err, h;
+                double err, h, hg;
                 double dx = dispx[pos];
                 double dy = dispy[pos];
                 double p0[3] = {x, y, 1};
                 double p1[3] = {x+dx, y+dy, 1};
                 applyHom(q0, invHa, p0);
                 applyHom(q1, invHb, p1);
+                
+                q_list[0] = q0;
+                q_list[1] = q1;
 
                 // compute the coordinates
-                h = rpc_height(rpca, rpcb, q0[0], q0[1], q1[0], q1[1], &err);
-                heightMap[pos] = h;
+                h = rpc_height_alg(&rpc_list[0], &rpc_list[1], q_list[0][0], q_list[0][1], q_list[1][0], q_list[1][1], &err);
+                hg = rpc_height_geo(rpc_list, q_list, N_rpc,  &err);
+                printf("heightcomp : %f %f\n",h,hg);
+                heightMap[pos] = hg;
                 errMap[pos] = err;
 
 //                eval_rpc(groundCoords, rpca, q0[0], q0[1], h);
@@ -189,6 +205,11 @@ int main_disp_to_h(int c, char *v[])
     // save the height map and error map
     iio_save_image_float_vec(fout_heights, heightMap, nx, ny, 1);
     iio_save_image_float_vec(fout_err, errMap, nx, ny, 1);
+    
+    // free mem
+    free(rpc_list);
+    free(q_list);
+
     return 0;
 }
 

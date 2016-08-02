@@ -45,5 +45,17 @@ static void eval_rpc_pair(double xprime[2],
 		double x, double y, double z);
 
 // compute the height of a point given its location inside two images
-double rpc_height(struct rpc *rpca, struct rpc *rpcb,
+double rpc_height_alg(struct rpc *rpca, struct rpc *rpcb,
 		double x, double y, double xp, double yp, double *outerr);
+
+// convert (long,lat,h) to ECEF coord sys. (X,Y,Z)
+void geotedic_to_ECEF(double lg, double lt, double h, 
+			    double *X, double *Y, double *Z);
+
+// given (X,Y,Z) ECEF coord, computes the alt above the WGS 84 ellipsoid
+double get_altitude_from_ECEF(double X, double Y, double Z);
+
+// compute the height of a point given its location inside two images
+// geometric solution
+double rpc_height_geo(struct rpc *rpc_list, 
+		double ** q_list, int N, double *outerr);

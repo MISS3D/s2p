@@ -8,6 +8,7 @@
 #include <float.h>
 
 #include "xfopen.c"
+#include "vvector.h"
 
 
 
@@ -476,7 +477,7 @@ void eval_rpc_pair(double xprime[2],
 #define RPCH_LAMBDA_STOP 0.00001
 #define RPCH_A2MAX 1e-50
 // compute the height of a point given its location inside two images
-double rpc_height(struct rpc *rpca, struct rpc *rpcb,
+double rpc_height_alg(struct rpc *rpca, struct rpc *rpcb,
 		double xa, double ya, double xb, double yb, double *outerr)
 {
 	double x[2] = {xa, ya};
@@ -509,6 +510,122 @@ double rpc_height(struct rpc *rpca, struct rpc *rpcb,
 			break;
 	}
 	return h;
+}
+
+
+// Some numerical values related to WGS 84 ellipsoid
+#define A 6378137           // semi major axis
+#define E 0.081819190842622 // first eccentricity
+
+typedef struct // define the line passing by point 's' with direction vector 'v'
+{
+	double s[3]; // a point in space
+	double v[3]; // a direction vector
+} SV;
+
+// convert (long,lat,h) to ECEF coord sys. (X,Y,Z)
+void geotedic_to_ECEF(double lg, double lt, double h, 
+					  double *X, double *Y, double *Z)
+{
+	double pi = acos(-1);
+	lg = lg*pi/180.;
+	lt = lt*pi/180.;
+	
+	double N = A/sqrt(1.-E*E*sin(lt)*sin(lt));
+	*X=(N+h)*cos(lt)*cos(lg); 
+	*Y=(N+h)*cos(lt)*sin(lg); 
+	*Z=(N*(1.-E*E)+h)*sin(lt);
+}
+
+// given (X,Y,Z) ECEF coord, computes the alt above the WGS 84 ellipsoid
+double get_altitude_from_ECEF(double X, double Y, double Z)
+{
+	double p = sqrt(X*X+Y*Y);
+	double k0 = 1./(1.-E*E);
+	double c0 = pow(p*p+(1.-E*E)*Z*Z*k0*k0,1.5)/(A*E*E);
+	double k1 = k0; 
+	double c1 = c0;
+	double h0=-10000.,h;
+	double diff=10000.;
+	
+	// newton-raphson; most of the time,
+	// only takes 2 iterations
+	int max_nb_iter=15,nb_iter=0;
+	while( (fabs(diff)>0.001) && (nb_iter <= max_nb_iter) ) 
+	{
+		k1 = 1. + (p*p+(1.-E*E)*Z*Z*k1*k1*k1)/(c1-p*p);
+		c1 = pow(p*p+(1.-E*E)*Z*Z*k1*k1,1.5)/(A*E*E);
+		h = sqrt(p*p+Z*Z*k1*k1)*(1./k1-1./k0)/(E*E);
+		diff=h0-h;
+		h0=h;
+		
+		nb_iter++;
+	}
+	
+	return h;
+}
+
+// compute the height of a point given its location inside two images
+// geometric solution
+double rpc_height_geo(struct rpc *rpc_list, 
+		double ** q_list, int N, double *outerr)
+{
+	
+	double alt1=3000.;
+	double alt2=45.;
+	
+	double X1,Y1,Z1,X2,Y2,Z2;
+	SV *sv_tab = (SV *) malloc(N*sizeof(SV));
+	for(int i=0; i<N; i++)
+	{
+		double point1[2],point2[2];
+		eval_rpc(point2, &rpc_list[i], q_list[i][0], q_list[i][1], alt2);
+		eval_rpc(point1, &rpc_list[i], q_list[i][0], q_list[i][1], alt1);
+		
+		geotedic_to_ECEF(point1[0],point1[1],alt1,&X1,&Y1,&Z1);
+		geotedic_to_ECEF(point2[0],point2[1],alt2,&X2,&Y2,&Z2);
+		
+		sv_tab[i].s[0] = X2;
+		sv_tab[i].s[1] = Y2;
+		sv_tab[i].s[2] = Z2;
+		sv_tab[i].v[0] = X2-X1;
+		sv_tab[i].v[1] = Y2-Y1;
+		sv_tab[i].v[2] = Z2-Z1;
+		VEC_NORMALIZE(sv_tab[i].v);
+	}	
+	
+	double prod1[3][3];
+	double prod2[3];
+	double Id[3][3];
+	double mat_sum[3][3]={{0,0,0},
+					   {0,0,0},
+					   {0,0,0}};
+	double prod_sum[3]={0,0,0};
+	for(int i=0; i<N; i++)
+	{
+		OUTER_PRODUCT_3X3(prod1,sv_tab[i].v,sv_tab[i].v);
+		IDENTIFY_MATRIX_3X3(Id);
+		ACCUM_SCALE_MATRIX_3X3(Id,-1,prod1); // Now Id actually contains a mat diff
+		ACCUM_SCALE_MATRIX_3X3(mat_sum,1,Id); // accumulates it into matrix 'mat_sum'
+		MAT_DOT_VEC_3X3(prod2,Id,sv_tab[i].s); // Id still contains a mat diff
+		VEC_ACCUM(prod_sum,1,prod2); // accumulates the above result
+	}
+	
+	double mat_sum_inv[3][3];
+	double det;
+	INVERT_3X3(mat_sum_inv,det,mat_sum);
+
+	
+	double point_opt[3];
+	MAT_DOT_VEC_3X3(point_opt,mat_sum_inv,prod_sum);
+	
+	//clean mem
+	free(sv_tab);
+	
+	// TODO
+	*outerr = 0;
+	
+	return get_altitude_from_ECEF(point_opt[0],point_opt[1],point_opt[2]);
 }
 
 
