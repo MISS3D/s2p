@@ -12,7 +12,7 @@ import common
 from config import cfg
 
 
-def compute_height_map(rpc1, rpc2, H1, H2, disp, mask, height, rpc_err, A=None):
+def compute_height_map(rpc1, rpc2, H1, H2, disp, mask, height, rpc_err, x, y, w, h, A=None):
     """
     Computes a height map from a disparity map, using rpc.
 
@@ -31,8 +31,8 @@ def compute_height_map(rpc1, rpc2, H1, H2, disp, mask, height, rpc_err, A=None):
     else:
         HH2 = H2
 
-    common.run("disp_to_h %s %s %s %s %s %s %s %s" % (rpc1, rpc2, H1, HH2, disp,
-                                                      mask, height, rpc_err))
+    common.run("disp_to_h %s %s %s %s %s %s %s %s %s %s %s %s" % (rpc1, rpc2, H1, HH2, disp,
+                                                      mask, height, rpc_err, x, y, w, h))
     return
 
 
@@ -104,9 +104,9 @@ def compute_dem(out, x, y, w, h, z, rpc1, rpc2, H1, H2, disp, mask, rpc_err,
     """
     out_dir = os.path.dirname(out)
 
-    tmp = common.tmpfile('.tif')
-    compute_height_map(rpc1, rpc2, H1, H2, disp, mask, tmp, rpc_err, A)
-    transfer_map(tmp, H1, x, y, w, h, z, out)
+    #tmp = common.tmpfile('.tif')
+    compute_height_map(rpc1, rpc2, H1, H2, disp, mask, out, rpc_err, x, y, w, h, A)
+    #transfer_map(tmp, H1, x, y, w, h, z, out)
 
 
 def compute_ply(out, rpc1, rpc2, H1, H2, disp, mask, img, A=None):

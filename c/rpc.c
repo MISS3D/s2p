@@ -578,6 +578,7 @@ double rpc_height_geo(struct rpc *rpc_list,
 	SV *sv_tab = (SV *) malloc(N*sizeof(SV));
 	for(int i=0; i<N; i++)
 	{
+
 		double point1[2],point2[2];
 		eval_rpc(point2, &rpc_list[i], q_list[i][0], q_list[i][1], alt2);
 		eval_rpc(point1, &rpc_list[i], q_list[i][0], q_list[i][1], alt1);
@@ -624,7 +625,7 @@ double rpc_height_geo(struct rpc *rpc_list,
 	
 	// TODO
 	*outerr = 0;
-	
+
 	return get_altitude_from_ECEF(point_opt[0],point_opt[1],point_opt[2]);
 }
 
