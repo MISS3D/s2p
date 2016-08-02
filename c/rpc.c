@@ -472,47 +472,6 @@ void eval_rpc_pair(double xprime[2],
 }
 
 
-#define RPCH_MAXIT 100
-#define RPCH_HSTEP 1
-#define RPCH_LAMBDA_STOP 0.00001
-#define RPCH_A2MAX 1e-50
-// compute the height of a point given its location inside two images
-double rpc_height_alg(struct rpc *rpca, struct rpc *rpcb,
-		double xa, double ya, double xb, double yb, double *outerr)
-{
-	double x[2] = {xa, ya};
-	double y[2] = {xb, yb};
-
-	double h = 0;
-	for (int t = 0; t < RPCH_MAXIT; t++) {
-		double hstep = RPCH_HSTEP;
-		double p[2], q[2];
-		eval_rpc_pair(p, rpca, rpcb, x[0], x[1], h);
-		eval_rpc_pair(q, rpca, rpcb, x[0], x[1], h + hstep);
-
-		double a[2] = {q[0] - p[0], q[1] - p[1]};
-		double b[2] = {y[0] - p[0], y[1] - p[1]};
-		double a2 = a[0]*a[0] + a[1]*a[1];
-
-		//if (a2 < RPCH_A2MAX) break;
-
-		double lambda = (a[0]*b[0] + a[1]*b[1])/a2;
-
-		// projection of p2 to the line r1-r0
-		double z[2] = {p[0] + lambda*a[0], p[1] + lambda*a[1]};
-
-		double err = hypot(z[0] - y[0], z[1] - y[1]);
-		if (outerr) *outerr=err;
-
-		h += lambda*hstep;
-
-		if (fabs(lambda) < RPCH_LAMBDA_STOP)
-			break;
-	}
-	return h;
-}
-
-
 // Some numerical values related to WGS 84 ellipsoid
 #define A 6378137           // semi major axis
 #define E 0.081819190842622 // first eccentricity

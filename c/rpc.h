@@ -44,9 +44,6 @@ static void eval_rpc_pair(double xprime[2],
 		struct rpc *a, struct rpc *b,
 		double x, double y, double z);
 
-// compute the height of a point given its location inside two images
-double rpc_height_alg(struct rpc *rpca, struct rpc *rpcb,
-		double x, double y, double xp, double yp, double *outerr);
 
 // convert (long,lat,h) to ECEF coord sys. (X,Y,Z)
 void geotedic_to_ECEF(double lg, double lt, double h, 
