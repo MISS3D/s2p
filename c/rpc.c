@@ -579,11 +579,27 @@ double rpc_height_geo(struct rpc *rpc_list,
 	double point_opt[3];
 	MAT_DOT_VEC_3X3(point_opt,mat_sum_inv,prod_sum);
 	
+	// Error, defined as the mean distance
+	// between the optimal point
+	// and the set of viewing lines
+	double cross_prod[3];
+	double sm[3];
+	double norm;
+	*outerr = 0;
+	for(int i=0; i<N; i++)
+	{
+		sm[0] = point_opt[0] - sv_tab[i].s[0];
+		sm[1] = point_opt[1] - sv_tab[i].s[1];
+		sm[2] = point_opt[2] - sv_tab[i].s[2];
+		
+		VEC_CROSS_PRODUCT(cross_prod,sv_tab[i].v,sm);
+		VEC_LENGTH(norm,cross_prod);
+		*outerr += norm;
+	}
+	*outerr = *outerr / (double) N;
+	
 	//clean mem
 	free(sv_tab);
-	
-	// TODO
-	*outerr = 0;
 
 	return get_altitude_from_ECEF(point_opt[0],point_opt[1],point_opt[2]);
 }
