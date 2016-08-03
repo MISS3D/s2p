@@ -12,27 +12,40 @@ import common
 from config import cfg
 
 
-def compute_height_map(rpc1, rpc2, H1, H2, disp, mask, height, rpc_err, x, y, w, h, A=None):
+def compute_height_map(global_out_dir, 
+                       col, row, tw, th, z, rpc_list):
     """
-    Computes a height map from a disparity map, using rpc.
+    Computes a height map from a disparity map, using a list of rpc.
 
     Args:
-        rpc1, rpc2: paths to the xml files
-        H1, H2: path to txt files containing two 3x3 numpy arrays defining
-            the rectifying homographies
-        disp, mask: paths to the diparity and mask maps
-        height: path to the output height map
-        rpc_err: path to the output rpc_error of triangulation
-        A (optional): pointing correction matrix for im2
+        global_out_dir : global s2p output directory
+        col, row, tw, th: four integers defining the rectangular ROI in the original
+            image. (col, row) is the top-left corner, and (tw, th) are the dimensions
+            of the tile.
+        z: zoom factor (usually 1, 2 or 4) used to produce the input disparity
+            map
+        rpc_list : list of rpc for each involved image
     """
-    if A is not None:
-        HH2 = common.tmpfile('.txt')
-        np.savetxt(HH2, np.dot(np.loadtxt(H2), np.linalg.inv(A)))
-    else:
-        HH2 = H2
+    #TODO
+    #if A is not None:
+        #HH2 = common.tmpfile('.txt')
+        #np.savetxt(HH2, np.dot(np.loadtxt(H2), np.linalg.inv(A)))
+    #else:
+        #HH2 = H2
+        
+    #bool_A = (A is None)
+    
+    rpc_list_str=''
+    for rpc in rpc_list:
+        rpc_list_str += rpc + ' '
+        
+    cmd = "disp_to_heights %s %s %s %s %s %s %s " % (global_out_dir, 
+                       col, row, tw, th, z, 
+                       rpc_list_str)
 
-    common.run("disp_to_h %s %s %s %s %s %s %s %s %s %s %s %s" % (rpc1, rpc2, H1, HH2, disp,
-                                                      mask, height, rpc_err, x, y, w, h))
+    #print cmd
+    common.run(cmd)
+
     return
 
 
@@ -79,34 +92,24 @@ def transfer_map(in_map, H, x, y, w, h, zoom, out_map):
     # common.run('plambda %s "x isinf nan x if" > %s' % (tmp_h, out_height))
 
 
-def compute_dem(out, x, y, w, h, z, rpc1, rpc2, H1, H2, disp, mask, rpc_err,
-                A=None):
+def compute_dem(global_out_dir, 
+                col, row, tw, th, z, rpc_list):
     """
     Computes an altitude map, on the grid of the original reference image, from
     a disparity map given on the grid of the rectified reference image.
 
     Args:
-        out: path to the output file
-        x, y, w, h: four integers defining the rectangular ROI in the original
-            image. (x, y) is the top-left corner, and (w, h) are the dimensions
-            of the rectangle.
+        global_out_dir : global s2p output directory
+        col, row, tw, th: four integers defining the rectangular ROI in the original
+            image. (col, row) is the top-left corner, and (tw, th) are the dimensions
+            of the tile.
         z: zoom factor (usually 1, 2 or 4) used to produce the input disparity
             map
-        rpc1, rpc2: paths to the xml files
-        H1, H2: path to txt files containing two 3x3 numpy arrays defining
-            the rectifying homographies
-        disp, mask: paths to the diparity and mask maps
-        rpc_err: path to the output rpc_error of triangulation
-        A (optional): pointing correction matrix for im2
-
-    Returns:
-        nothing
+        rpc_list : list of rpc for each involved image
     """
-    out_dir = os.path.dirname(out)
 
-    #tmp = common.tmpfile('.tif')
-    compute_height_map(rpc1, rpc2, H1, H2, disp, mask, out, rpc_err, x, y, w, h, A)
-    #transfer_map(tmp, H1, x, y, w, h, z, out)
+    compute_height_map(global_out_dir, 
+                       col, row, tw, th, z, rpc_list)
 
 
 def colorize(crop_panchro, im_color, x, y, zoom, out_colorized, rmin,rmax):

@@ -9,10 +9,6 @@
 #include "rpc.h"
 #include "read_matrix.c"
 
-#ifndef M_PI
-#define M_PI 3.14159265358979323846264338328
-#endif
-
 
 void applyHom(double outv[3], double M[3][3], double v[3]) {
     MAT_DOT_VEC_3X3(outv, M, v);
@@ -140,10 +136,6 @@ int main_disp_to_h(int c, char *v[])
                                                      dispy[posD21],
                                                      dispy[posD22],
                                                      Dx,Dy);
-                                                     
-                    /*double dx = dispx[posD];
-                    double dy = dispx[posD];*/
-                                                     
                     
                     // Map point q0 (from ref image) 
                     // to its mate q1 (from slave image)
@@ -156,65 +148,14 @@ int main_disp_to_h(int c, char *v[])
                     q_list[1] = q1;
                     
                     // Compute the related height & rpc_err
-                    double err, h, hg;
-                    //h = rpc_height_alg(&rpc_list[0], &rpc_list[1], q_list[0][0], q_list[0][1], q_list[1][0], q_list[1][1], &err);
+                    double err, hg;
                     hg = rpc_height_geo(rpc_list, q_list, N_rpc,  &err);
-                    //printf("heightcomp : %f %f |diff|=%f\n",h,hg,fabs(hg-h));
 
                     // Output the result in height & rpc_err maps,
                     // both in original geometry
                     heightMap[posH] = hg;
                     errMap[posH] = err;
                     
-                    // Just a simple test :
-                    // try to disturbe disparities a little bit,
-                    // then check the variance on heights
-                    // and assess the sensibility of the methods
-                    // rpc_height_alg and rpc_height_geo
-                    // 
-                    // Conclusion : same sensibility
-                    /*printf("--------------\n");
-                    double sumh,sumhg;
-                    double varh,varhg;
-                    double disturbed_h[100];
-                    double disturbed_hg[100];
-                    
-                    for(int trial=0;trial<100;trial++)
-                    {
-                        double dx2 = dx + rand()/ ( (double) RAND_MAX)/10;
-                        double dy2 = dy + rand()/ ( (double) RAND_MAX)/10;
-                        
-                        p1[0] = p0[0]+dx2;
-                        p1[1] = p0[1]+dy2;
-                        p1[2] = 1.;
-                        
-                        applyHom(q1, invHb, p1);
-                        
-                        q_list[0] = q0;
-                        q_list[1] = q1;
-                        
-                        disturbed_h[trial] = rpc_height_alg(&rpc_list[0], &rpc_list[1], q_list[0][0], q_list[0][1], q_list[1][0], q_list[1][1], &err);
-                        disturbed_hg[trial] = rpc_height_geo(rpc_list, q_list, N_rpc,  &err);
-                    }
-                    sumh=0.;
-                    varh=0;
-                    for(int trial=0;trial<100;trial++)
-                        sumh += disturbed_h[trial];
-                    sumh = sumh/100.;
-                    for(int trial=0;trial<100;trial++)
-                        varh += (sumh-disturbed_h[trial])*(sumh-disturbed_h[trial]);
-                    varh = varh/100;
-                    
-                    sumhg=0.;
-                    varhg=0;
-                    for(int trial=0;trial<100;trial++)
-                        sumhg += disturbed_hg[trial];
-                    sumhg = sumhg/100.;
-                    for(int trial=0;trial<100;trial++)
-                        varhg += (sumhg-disturbed_hg[trial])*(sumh-disturbed_hg[trial]);
-                    varhg = varhg/100;
-                    printf("%f %f | %f %f\n",sumh,varh,sumhg,varhg);
-                    printf("--------------\n");*/
                 }
             }
             else
