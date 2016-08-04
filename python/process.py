@@ -201,18 +201,17 @@ def finalize_tile(tile_info, utm_zone=None):
     # colors
     color_crop_ref(tile_info, cfg['images'][0]['clr'])
     
-
     ## Generate cloud
     generate_cloud(tile_info, cfg['offset_ply'], utm_zone)
 
 
-def rectify(out_dir, A_global, img1, rpc1, img2, rpc2, x=None, y=None,
+def rectify(tile_dir, A_global, img1, rpc1, img2, rpc2, x=None, y=None,
             w=None, h=None, prv1=None):
     """
     Computes rectifications, without tiling
 
     Args:
-        out_dir: path to the output directory
+        tile_dir: path to the output directory
         img1: path to the reference image.
         rpc1: paths to the xml file containing the rpc coefficients of the
             reference image
@@ -228,28 +227,28 @@ def rectify(out_dir, A_global, img1, rpc1, img2, rpc2, x=None, y=None,
         nothing
     """
     # output files
-    rect1 = '%s/rectified_ref.tif' % (out_dir)
-    rect2 = '%s/rectified_sec.tif' % (out_dir)
-    disp = '%s/rectified_disp.tif' % (out_dir)
-    mask = '%s/rectified_mask.png' % (out_dir)
-    subsampling = '%s/subsampling.txt' % (out_dir)
-    pointing = '%s/pointing.txt' % out_dir
-    center = '%s/center_keypts_sec.txt' % out_dir
-    sift_matches = '%s/sift_matches.txt' % out_dir
-    sift_matches_plot = '%s/sift_matches_plot.png' % out_dir
-    H_ref = '%s/H_ref.txt' % out_dir
-    H_sec = '%s/H_sec.txt' % out_dir
-    disp_min_max = '%s/disp_min_max.txt' % out_dir
-    config = '%s/config.json' % out_dir
+    rect1 = os.path.join(tile_dir,'rectified_ref.tif')
+    rect2 = os.path.join(tile_dir,'rectified_sec.tif')
+    disp = os.path.join(tile_dir,'rectified_disp.tif')
+    mask = os.path.join(tile_dir,'rectified_mask.png')
+    subsampling = os.path.join(tile_dir,'subsampling.txt')
+    pointing = os.path.join(tile_dir,'pointing.txt')
+    center = os.path.join(tile_dir,'center_keypts_sec.txt')
+    sift_matches = os.path.join(tile_dir,'sift_matches.txt')
+    sift_matches_plot = os.path.join(tile_dir,'sift_matches_plot.png')
+    H_ref = os.path.join(tile_dir,'H_ref.txt')
+    H_sec = os.path.join(tile_dir,'H_sec.txt')
+    disp_min_max = os.path.join(tile_dir,'disp_min_max.txt')
+    config = os.path.join(tile_dir,'config.json')
 
     A, m = None, None
 
-    if os.path.isfile('%s/pointing.txt' % out_dir):
-        A = np.loadtxt('%s/pointing.txt' % out_dir)
+    if os.path.isfile(os.path.join(tile_dir,'pointing.txt')):
+        A = np.loadtxt(os.path.join(tile_dir,'pointing.txt'))
     else:
         A = A_global
-    if os.path.isfile('%s/sift_matches.txt' % out_dir):
-        m = np.loadtxt('%s/sift_matches.txt' % out_dir)
+    if os.path.isfile(os.path.join(tile_dir,'sift_matches.txt')):
+        m = np.loadtxt(os.path.join(tile_dir,'sift_matches.txt'))
 
     # rectification
     H1, H2, disp_min, disp_max = rectification.rectify_pair(img1, img2, rpc1,
@@ -263,13 +262,13 @@ def rectify(out_dir, A_global, img1, rpc1, img2, rpc2, x=None, y=None,
     np.savetxt(disp_min_max, np.array([disp_min, disp_max]), fmt='%3.1f')
 
 
-def disparity(out_dir, img1, rpc1, img2, rpc2, x=None, y=None,
+def disparity(tile_dir, img1, rpc1, img2, rpc2, x=None, y=None,
               w=None, h=None, prv1=None):
     """
     Computes a disparity map from a Pair of Pleiades images, without tiling
 
     Args:
-        out_dir: path to the output directory
+        tile_dir: path to the output directory
         img1: path to the reference image.
         rpc1: paths to the xml file containing the rpc coefficients of the
             reference image
@@ -289,22 +288,21 @@ def disparity(out_dir, img1, rpc1, img2, rpc2, x=None, y=None,
         nothing
     """
     # output files
-    rect1 = '%s/rectified_ref.tif' % (out_dir)
-    rect2 = '%s/rectified_sec.tif' % (out_dir)
-    disp = '%s/rectified_disp.tif' % (out_dir)
-    mask = '%s/rectified_mask.png' % (out_dir)
-    cwid_msk = '%s/cloud_water_image_domain_mask.png' % (out_dir)
-    cwid_msk_rect = '%s/rectified_cloud_water_image_domain_mask.png' % (out_dir)
-
-    subsampling = '%s/subsampling.txt' % (out_dir)
-    pointing = '%s/pointing.txt' % out_dir
-    center = '%s/center_keypts_sec.txt' % out_dir
-    sift_matches = '%s/sift_matches.txt' % out_dir
-    sift_matches_plot = '%s/sift_matches_plot.png' % out_dir
-    H_ref = '%s/H_ref.txt' % out_dir
-    H_sec = '%s/H_sec.txt' % out_dir
-    disp_min_max = '%s/disp_min_max.txt' % out_dir
-    config = '%s/config.json' % out_dir
+    rect1 = os.path.join(tile_dir,'rectified_ref.tif')
+    rect2 = os.path.join(tile_dir,'rectified_sec.tif')
+    disp = os.path.join(tile_dir,'rectified_disp.tif')
+    mask = os.path.join(tile_dir,'rectified_mask.png')
+    cwid_msk = os.path.join(tile_dir,'cloud_water_image_domain_mask.png')
+    cwid_msk_rect = os.path.join(tile_dir,'rectified_cloud_water_image_domain_mask.png')
+    subsampling = os.path.join(tile_dir,'subsampling.txt')
+    pointing = os.path.join(tile_dir,'pointing.txt')
+    center = os.path.join(tile_dir,'center_keypts_sec.txt')
+    sift_matches = os.path.join(tile_dir,'sift_matches.txt')
+    sift_matches_plot = os.path.join(tile_dir,'sift_matches_plot.png')
+    H_ref = os.path.join(tile_dir,'H_ref.txt')
+    H_sec = os.path.join(tile_dir,'H_sec.txt')
+    disp_min_max = os.path.join(tile_dir,'disp_min_max.txt')
+    config = os.path.join(tile_dir,'config.json')
 
     # disparity (block-matching)
     disp_min, disp_max = np.loadtxt(disp_min_max)
@@ -336,23 +334,10 @@ def triangulate(tile_info, prv1=None, A=None):
     Computes triangulations, without tiling
 
     Args:
-        #out_dir: path to the output directory
-        #img1: path to the reference image.
-        #rpc1: paths to the xml file containing the rpc coefficients of the
-            #reference image
-        #img2: path to the secondary image.
-        #rpc2: paths to the xml file containing the rpc coefficients of the
-            #secondary image
-        #x, y, w, h: four integers defining the rectangular ROI in the reference
-            #image. (x, y) is the top-left corner, and (w, h) are the dimensions
-            #of the rectangle.
-            
         tile_info : a dictionary that provides all you need to process a tile
         prv1 (optional): path to a preview of the reference image
         #A (optional, default None): pointing correction matrix.
 
-    Returns:
-        nothing
     """
     # get info
     col, row, tw, th = tile_info['coordinates']
@@ -363,16 +348,8 @@ def triangulate(tile_info, prv1=None, A=None):
     images = cfg['images']
     for i in xrange(len(images)):
         rpc_list.append(images[i]['rpc'])
-    
-    #disp = '%s/rectified_disp.tif' % (out_dir)
-    #mask = '%s/rectified_mask.png' % (out_dir)
-    #H_ref = '%s/H_ref.txt' % out_dir
-    #H_sec = '%s/H_sec.txt' % out_dir
-    #A_global = os.path.join(cfg['out_dir'],
-                            #'global_pointing_pair_%d.txt' % pair_id)
-    
 
     # triangulation
-    triangulation.compute_dem(global_out_dir, 
+    triangulation.compute_height_map(global_out_dir, 
                               col, row, tw, th, z,
                               rpc_list)

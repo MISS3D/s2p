@@ -69,7 +69,7 @@ def mosaic_gdal(fout, w, h, list_tiles, tw, th, ov):
     return
 
 
-def mosaic_gdal2(vrtfilename, tiles_full_info, filename, w,h,z=1):
+def mosaic_stitch(vrtfilename, tiles_full_info, filename, w,h,z=1):
     """
     Compose several tiles of differents sizes into a bigger image (using gdal vrt)
 

@@ -73,14 +73,14 @@ def write_vrt_files(tiles_full_info):
 
         tileSizesAndPositions[tile_reldir] = dicoPos[pos]
 
-    # VRT file : height map 
     z = cfg['subsampling_factor']
-    tile_composer.mosaic_gdal2( os.path.join(cfg['out_dir'], 'height_map.vrt'),
+    
+    # VRT file : height map 
+    tile_composer.mosaic_stitch( os.path.join(cfg['out_dir'], 'height_map.vrt'),
                                tileSizesAndPositions, 'height_map_crop.tif', fw, fh, z)
                                
     # VRT file : rpc_err
-    z = cfg['subsampling_factor']
-    tile_composer.mosaic_gdal2( os.path.join(cfg['out_dir'], 'rpc_err.vrt'),
+    tile_composer.mosaic_stitch( os.path.join(cfg['out_dir'], 'rpc_err.vrt'),
                                tileSizesAndPositions, 'rpc_err_crop.tif', fw, fh, z)
 
 

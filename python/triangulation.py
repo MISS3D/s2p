@@ -26,15 +26,7 @@ def compute_height_map(global_out_dir,
             map
         rpc_list : list of rpc for each involved image
     """
-    #TODO
-    #if A is not None:
-        #HH2 = common.tmpfile('.txt')
-        #np.savetxt(HH2, np.dot(np.loadtxt(H2), np.linalg.inv(A)))
-    #else:
-        #HH2 = H2
-        
-    #bool_A = (A is None)
-    
+
     rpc_list_str=''
     for rpc in rpc_list:
         rpc_list_str += rpc + ' '
@@ -47,69 +39,6 @@ def compute_height_map(global_out_dir,
     common.run(cmd)
 
     return
-
-
-def transfer_map(in_map, H, x, y, w, h, zoom, out_map):
-    """
-    Transfer the heights computed on the rectified grid to the original
-    Pleiades image grid.
-
-    Args:
-        in_map: path to the input map, usually a height map or a mask, sampled
-            on the rectified grid
-        H: path to txt file containing a numpy 3x3 array representing the
-            rectifying homography
-        x, y, w, h: four integers defining the rectangular ROI in the original
-            image. (x, y) is the top-left corner, and (w, h) are the dimensions
-            of the rectangle.
-        zoom: zoom factor (usually 1, 2 or 4) used to produce the input height
-            map
-        out_map: path to the output map
-    """
-    # write the inverse of the resampling transform matrix. In brief it is:
-    # homography * translation * zoom
-    # This matrix transports the coordinates of the original cropped and
-    # zoomed grid (the one desired for out_height) to the rectified cropped and
-    # zoomed grid (the one we have for height)
-    Z = np.diag([zoom, zoom, 1])
-    A = common.matrix_translation(x, y)
-    HH = np.dot(np.loadtxt(H), np.dot(A, Z))
-
-    # apply the homography
-    # write the 9 coefficients of the homography to a string, then call synflow
-    # to produce the flow, then backflow to apply it
-    # zero:256x256 is the iio way to create a 256x256 image filled with zeros
-    hij = ' '.join(['%r' % num for num in HH.flatten()])
-    common.run('synflow hom "%s" zero:%dx%d /dev/null - | BILINEAR=1 backflow - %s %s' % (
-        hij, w/zoom, h/zoom, in_map, out_map))
-
-    # w and h, provided by the s2p.process_pair_single_tile function, are
-    # always multiples of zoom.
-
-    # replace the -inf with nan in the heights map, because colormesh filter
-    # out nans but not infs
-    # implements: if isinf(x) then nan, else x
-    # common.run('plambda %s "x isinf nan x if" > %s' % (tmp_h, out_height))
-
-
-def compute_dem(global_out_dir, 
-                col, row, tw, th, z, rpc_list):
-    """
-    Computes an altitude map, on the grid of the original reference image, from
-    a disparity map given on the grid of the rectified reference image.
-
-    Args:
-        global_out_dir : global s2p output directory
-        col, row, tw, th: four integers defining the rectangular ROI in the original
-            image. (col, row) is the top-left corner, and (tw, th) are the dimensions
-            of the tile.
-        z: zoom factor (usually 1, 2 or 4) used to produce the input disparity
-            map
-        rpc_list : list of rpc for each involved image
-    """
-
-    compute_height_map(global_out_dir, 
-                       col, row, tw, th, z, rpc_list)
 
 
 def colorize(crop_panchro, im_color, x, y, zoom, out_colorized, rmin,rmax):
