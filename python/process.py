@@ -41,10 +41,10 @@ def color_crop_ref(tile_info, clr=None):
     z = cfg['subsampling_factor']
 
     # paths
-    crop_ref = tile_dir + '/roi_ref_crop.tif'
-    global_minmax = cfg['out_dir'] + '/global_minmax.txt'
-    applied_minmax = tile_dir + '/applied_minmax.txt'
-
+    crop_ref = os.path.join(tile_dir , 'roi_ref_crop.tif')
+    global_minmax = os.path.join(cfg['out_dir'] , 'global_minmax.txt')
+    applied_minmax = os.path.join(tile_dir , 'applied_minmax.txt')
+    
     global_minmax_arr = np.loadtxt(global_minmax)
 
     if cfg['color_ply']:
@@ -64,7 +64,7 @@ def color_crop_ref(tile_info, clr=None):
             print 'Rescaling of tile %s already done, skip' % tile_dir
         else:
 
-            crop_color = tile_dir + '/roi_color_ref.tif'
+            crop_color = os.path.join(tile_dir , '/roi_color_ref.tif')
             if clr is not None:
                 triangulation.colorize(crop_ref, clr, x, y, z, crop_color,
                                        applied_minmax_arr[0],
@@ -103,9 +103,8 @@ def generate_cloud(tile_info, do_offset=False, utm_zone=None):
     x, y, w, h = tile_info['coordinates']
     img1, rpc1 = cfg['images'][0]['img'], cfg['images'][0]['rpc']
 
-    #height_map = tile_dir + '/local_merged_height_map.tif'
-    height_map = tile_dir + '/local_merged_height_map_crop.tif'
-    crop_color = tile_dir + '/roi_color_ref.tif'
+    height_map = os.path.join(tile_dir , 'height_map_crop.tif')
+    crop_color = os.path.join(tile_dir , 'roi_color_ref.tif')
     if not os.path.exists(crop_color):
         crop_color = ''
 
@@ -117,11 +116,10 @@ def generate_cloud(tile_info, do_offset=False, utm_zone=None):
     # col and row have been divided by z inside 'finalize_tile' for
     # convinience; col*z and row*z allow to get the initial values back.
     A = common.matrix_translation(-x * z, -y * z)
-    z = cfg['subsampling_factor']
     f = 1.0 / z
     Z = np.diag([f, f, 1])
     A = np.dot(Z, A)
-    trans = tile_dir + '/trans.txt'
+    trans = os.path.join(tile_dir , 'trans.txt')
     np.savetxt(trans, A, fmt='%9.3f')
 
     # compute coordinates (offsets) of the point we want to use as origin in
@@ -135,7 +133,7 @@ def generate_cloud(tile_info, do_offset=False, utm_zone=None):
         off_x, off_y = 0, 0
 
     # output
-    cloud = tile_dir + '/cloud.ply'
+    cloud = os.path.join(tile_dir , 'cloud.ply')
 
     triangulation.compute_point_cloud(cloud, height_map, rpc1, trans, crop_color,
                                       off_x, off_y, utm_zone=utm_zone)
@@ -153,7 +151,6 @@ def finalize_tile(tile_info, utm_zone=None):
 
     Args:
         tile_info: a dictionary that provides all you need to process a tile
-        height_maps: list of the height maps generated from N pairs
     """
     ## get info
     tile_dir = tile_info['directory']

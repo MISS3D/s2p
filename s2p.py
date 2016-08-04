@@ -217,7 +217,7 @@ def process_tile(tile_info):
         # finalization
         finalize=True
         for pair_id in xrange(1, nb_pairs + 1):
-            if os.path.isfile(os.path.join(tile_dir, 'pair_%d' % (pair_id+1), 'this_tile_is_masked.txt')):
+            if os.path.isfile(os.path.join(tile_dir, 'pair_%d' % (pair_id), 'this_tile_is_masked.txt')):
                 finalize = False;
         if finalize:
             process.finalize_tile(tile_info, cfg['utm_zone'])
