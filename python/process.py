@@ -64,7 +64,7 @@ def color_crop_ref(tile_info, clr=None):
             print 'Rescaling of tile %s already done, skip' % tile_dir
         else:
 
-            crop_color = os.path.join(tile_dir , '/roi_color_ref.tif')
+            crop_color = os.path.join(tile_dir , 'roi_color_ref.tif')
             if clr is not None:
                 triangulation.colorize(crop_ref, clr, x, y, z, crop_color,
                                        applied_minmax_arr[0],
