@@ -160,9 +160,11 @@ int main_disp_to_heights(int c, char *v[])
     sprintf(fnb_views,"%s/nb_views.tif",tile_dir);
     float *nb_views = (float *) calloc(width*height, sizeof(float));
 
-
+    
+    // ################################
     // time to build the height map 
     // directly in ref image geometry !
+    // ################################
     
     double p0[3]; // a point inside a given disparity map
     double q1[3]; // a point inside a given slave image

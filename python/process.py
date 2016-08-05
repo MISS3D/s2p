@@ -212,6 +212,7 @@ def rectify(tile_dir, A_global, img1, rpc1, img2, rpc2, x=None, y=None,
 
     Args:
         tile_dir: path to the output directory
+        A_global: global pointing corrections
         img1: path to the reference image.
         rpc1: paths to the xml file containing the rpc coefficients of the
             reference image
@@ -222,9 +223,6 @@ def rectify(tile_dir, A_global, img1, rpc1, img2, rpc2, x=None, y=None,
             image. (x, y) is the top-left corner, and (w, h) are the dimensions
             of the rectangle.
         prv1 (optional): path to a preview of the reference image.
-
-    Returns:
-        nothing
     """
     # output files
     rect1 = os.path.join(tile_dir,'rectified_ref.tif')
@@ -283,9 +281,6 @@ def disparity(tile_dir, img1, rpc1, img2, rpc2, x=None, y=None,
         roi_msk (optional): path to a gml file containing a mask defining the
             area contained in the full image
         wat_msk (optional): path to a tiff file containing a water mask.
-
-    Returns:
-        nothing
     """
     # output files
     rect1 = os.path.join(tile_dir,'rectified_ref.tif')
