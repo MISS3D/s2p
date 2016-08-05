@@ -53,6 +53,14 @@ int main_disp_to_heights(int c, char *v[])
     int height=atoi(v[5]);
     float z = atoi(v[6]);
     
+    // build tile_dir path
+    char tile_dir[1000];
+    sprintf(tile_dir,"%s/tile_%d_%d_row_%d/col_%d",global_out_dir,width,height,Y,X);
+    
+    // take into account zoom
+    width = (int) (width/z)+1;
+    height = (int) (height/z)+1;
+    
     // read RPC
     struct rpc *initial_rpc_list;
     int N_rpc = c-7;
@@ -60,10 +68,6 @@ int main_disp_to_heights(int c, char *v[])
     for(int i=7;i<c;i++)
         read_rpc_file_xml(&initial_rpc_list[i-7], v[i]);
         
-    // buld tile_dir path
-    char tile_dir[1000];
-    sprintf(tile_dir,"%s/tile_%d_%d_row_%d/col_%d",global_out_dir,width,height,Y,X);
-    
     
     // read homographies
     int nb_pairs = N_rpc-1;
@@ -101,8 +105,6 @@ int main_disp_to_heights(int c, char *v[])
         dispx[i] = iio_read_image_float_split(tmp_path, &nx[i], &ny[i], &nch[i]);
         if (nch[i] > 1) dispy[i] = dispx[i] + nx[i]*ny[i];
         else dispy[i] = calloc(nx[i]*ny[i], sizeof(*dispy));
-        
-        printf("disp nx ny nch : %d %d %d\n",nx[i], ny[i], nch[i]);
     }
     
     // read mask
@@ -111,7 +113,6 @@ int main_disp_to_heights(int c, char *v[])
     {
         sprintf(tmp_path,"%s/pair_%d/rectified_mask.png",tile_dir,i+1);
         mask[i] = iio_read_image_float_split(tmp_path, &nx[i], &ny[i], &nch[i]);
-        printf("mask nx ny nch : %d %d %d\n",nx[i], ny[i], nch[i]);
     }
     
     // build outputs paths and alloc mem
@@ -171,11 +172,9 @@ int main_disp_to_heights(int c, char *v[])
             int posH = x + width*y;
             
             // Replace point (x,y) in the height map (h.m.)
-            // by its real position inside de ref image;
-            // the top-left corner of the h.m. is placed at (X,Y)
-            // so : (x,y) --> (x+X,y+Y)
-            // TODO : take into account zoom
-            double q0[3] = {x+X, y+Y, 1.};
+            // by its real position inside de ref image:
+            // (x,y) --> (x.z+X,y.z+Y)
+            double q0[3] = {x*z+X, y*z+Y, 1.};
             
             // push it to q_list
             // (ref view is always acceptable)
