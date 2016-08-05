@@ -113,3 +113,9 @@ cfg['srtm_dir'] = os.path.join(parent_dir, '.srtm')
 
 # DSM options
 cfg['dsm_option'] = 'median'
+
+# Tells whether we only want height_map.vrt 
+# and rpc_err.vrt (False) or some other
+# vrt product, sucha asnb of views per pixel, 
+# and so on... (True).
+cfg['full_vrt'] = True

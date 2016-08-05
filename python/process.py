@@ -166,6 +166,10 @@ def finalize_tile(tile_info, utm_zone=None):
     rpc_err_crop = os.path.join(tile_dir , 'rpc_err_crop.tif')
     crop_ref = os.path.join(tile_dir , 'roi_ref.tif')
     crop_ref_crop = os.path.join(tile_dir , 'roi_ref_crop.tif')
+    
+    if cfg['full_vrt']:
+        nb_views = os.path.join(tile_dir , 'nb_views.tif')
+        nb_views_crop = os.path.join(tile_dir , 'nb_views_crop.tif')
 
     dicoPos = {}
     dicoPos['M'] = [ov / 2, ov / 2, -ov, -ov]
@@ -197,6 +201,10 @@ def finalize_tile(tile_info, utm_zone=None):
                          newcol, newrow, w, h)
     if not (os.path.isfile(crop_ref_crop) and cfg['skip_existing']):
         common.cropImage(crop_ref, crop_ref_crop, newcol, newrow, w, h)
+    
+    if cfg['full_vrt']:
+        if not (os.path.isfile(nb_views_crop) and cfg['skip_existing']):
+            common.cropImage(nb_views, nb_views_crop, newcol, newrow, w, h)
 
     # colors
     color_crop_ref(tile_info, cfg['images'][0]['clr'])

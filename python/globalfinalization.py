@@ -82,6 +82,11 @@ def write_vrt_files(tiles_full_info):
     # VRT file : rpc_err
     tile_composer.mosaic_stitch( os.path.join(cfg['out_dir'], 'rpc_err.vrt'),
                                tileSizesAndPositions, 'rpc_err_crop.tif', fw, fh, z)
+                               
+    if cfg['full_vrt']:
+        # VRT file : nb_views
+        tile_composer.mosaic_stitch( os.path.join(cfg['out_dir'], 'nb_views.vrt'),
+                               tileSizesAndPositions, 'nb_views_crop.tif', fw, fh, z)
 
 
 def write_dsm():
