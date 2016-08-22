@@ -200,7 +200,7 @@ int main_disp_to_heights(int c, char *v[])
                 int posD = xD + nx[i]*yD;
                 
                 // determine whether a view acceptable
-                if ( (mask[i][posD]>0) && (xD >= 1) && (xD < nx[i]-1) && (yD >= 1) && (yD < ny[i]-1))
+                if ( (xD >= 1) && (xD < nx[i]-1) && (yD >= 1) && (yD < ny[i]-1) && (mask[i][posD]>0))
                 // (Bilinear interpolation uses a neighborhood of radius 1)
                 {
 
@@ -285,17 +285,18 @@ int main_disp_to_heights(int c, char *v[])
     free(A_list);
     free(nx);
     free(ny);
-    free(nch);
     for(int i=0;i<nb_pairs;i++)
     {
         free(dispx[i]);
-        free(dispy[i]);
+        if (nch[i] > 1)
+            free(dispy[i]);
         free(mask[i]);
     }
     free(dispx);
     free(dispy);
     free(mask);
     free(q_list);
+    free(nch);
     return 0;
 }
 
