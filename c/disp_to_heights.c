@@ -180,7 +180,9 @@ int main_disp_to_heights(int c, char *v[])
             
             // push it to q_list
             // (ref view is always acceptable)
-            q_list[0]=q0;
+            q_list[0][0]=q0[0];
+            q_list[0][1]=q0[1];
+            q_list[0][2]=q0[2];
             
             // for some reasons, it is possible that
             // a view can't be used; thus, N_views
@@ -242,7 +244,9 @@ int main_disp_to_heights(int c, char *v[])
                     // remember that index 0 is intended
                     // for q0 (point in ref image)
                     // and the rpc of the ref image
-                    q_list[push_position] = q1;
+                    q_list[push_position][0] = q1[0];
+                    q_list[push_position][1] = q1[1];
+                    q_list[push_position][2] = q1[2];
                     rpc_list[push_position] = initial_rpc_list[i+1];
                     
                     push_position++;
