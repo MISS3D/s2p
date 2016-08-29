@@ -524,20 +524,87 @@ double get_altitude_from_ECEF(double X, double Y, double Z)
 	return h;
 }
 
-// compute the height of a point given its location inside two images
-// geometric solution
-double rpc_height_geo(struct rpc *rpc_list, 
-		double ** q_list, int N, double *outerr)
+// distance between a 3D point P and a line (defined by its
+// normalized direction vector V and passing through a 3D point S) 
+double dist_line_point3D(double *V,double *S,double *P)
 {
+	double cross_prod[3];
+	double sm[3];
+	double norm;
+		
+	sm[0] = P[0] - S[0];
+	sm[1] = P[1] - S[1];
+	sm[2] = P[2] - S[2];
+
+	VEC_CROSS_PRODUCT(cross_prod,V,sm);
+	VEC_LENGTH(norm,cross_prod);
+	
+	return norm;
+}
+
+// find closest 3D point from from a set of 3D lines
+void find_point_opt(SV *sv_tab, int N, bool *take,
+		double *point_opt,double *outerr)
+		
+{
+	double prod1[3][3];
+	double prod2[3];
+	double Id[3][3];
+	double mat_sum[3][3]={{0,0,0},
+					   {0,0,0},
+					   {0,0,0}};
+	double prod_sum[3]={0,0,0};
+	
+	for(int i=0; i<N; i++)
+		if (take[i])
+		{
+			OUTER_PRODUCT_3X3(prod1,sv_tab[i].v,sv_tab[i].v);
+			IDENTIFY_MATRIX_3X3(Id);
+			ACCUM_SCALE_MATRIX_3X3(Id,-1,prod1); // Now Id actually contains a mat diff
+			ACCUM_SCALE_MATRIX_3X3(mat_sum,1,Id); // accumulates it into matrix 'mat_sum'
+			MAT_DOT_VEC_3X3(prod2,Id,sv_tab[i].s); // Id still contains a mat diff
+			VEC_ACCUM(prod_sum,1,prod2); // accumulates the above result
+		}
+	
+	double mat_sum_inv[3][3];
+	double det;
+	INVERT_3X3(mat_sum_inv,det,mat_sum);
+
+	// find the optimal point
+	MAT_DOT_VEC_3X3(point_opt,mat_sum_inv,prod_sum);
+
+	// Error, defined as the mean distance
+	// between the optimal point
+	// and the set of viewing lines
+	*outerr = 0.0;
+	double nb_elt = 0.0;
+	for(int i=0; i<N; i++)
+		if (take[i])
+		{
+			*outerr += dist_line_point3D(sv_tab[i].v,sv_tab[i].s,point_opt);
+			nb_elt++;
+		}
+	*outerr = *outerr / nb_elt;
+	
+}
+
+// compute the height of a point given its location inside two images
+// (geometric solution)
+double rpc_height_geo(struct rpc *rpc_list, 
+		double ** q_list, int *NV, 
+		bool findConsensus, double thres, double *outerr)
+{
+	
+	int N = *NV;
 	
 	double alt1=3000.;
 	double alt2=45.;
-	
 	double X1,Y1,Z1,X2,Y2,Z2;
 	SV *sv_tab = (SV *) malloc(N*sizeof(SV));
+	
+	// build the set of lines
 	for(int i=0; i<N; i++)
 	{
-
 		double point1[2],point2[2];
 		eval_rpc(point2, &rpc_list[i], q_list[i][0], q_list[i][1], alt2);
 		eval_rpc(point1, &rpc_list[i], q_list[i][0], q_list[i][1], alt1);
@@ -552,56 +619,110 @@ double rpc_height_geo(struct rpc *rpc_list,
 		sv_tab[i].v[1] = Y2-Y1;
 		sv_tab[i].v[2] = Z2-Z1;
 		VEC_NORMALIZE(sv_tab[i].v);
-	}	
-	
-	double prod1[3][3];
-	double prod2[3];
-	double Id[3][3];
-	double mat_sum[3][3]={{0,0,0},
-					   {0,0,0},
-					   {0,0,0}};
-	double prod_sum[3]={0,0,0};
-	for(int i=0; i<N; i++)
-	{
-		OUTER_PRODUCT_3X3(prod1,sv_tab[i].v,sv_tab[i].v);
-		IDENTIFY_MATRIX_3X3(Id);
-		ACCUM_SCALE_MATRIX_3X3(Id,-1,prod1); // Now Id actually contains a mat diff
-		ACCUM_SCALE_MATRIX_3X3(mat_sum,1,Id); // accumulates it into matrix 'mat_sum'
-		MAT_DOT_VEC_3X3(prod2,Id,sv_tab[i].s); // Id still contains a mat diff
-		VEC_ACCUM(prod_sum,1,prod2); // accumulates the above result
 	}
 	
-	double mat_sum_inv[3][3];
-	double det;
-	INVERT_3X3(mat_sum_inv,det,mat_sum);
-
+	double best_perf=1e6,err;
+	int best_consensus_score = 0;
+	bool *best_consensus = (bool *) malloc(N*sizeof(bool));
+	bool *tmp_consensus = (bool *) malloc(N*sizeof(bool));
+	bool *take = (bool *) calloc(N,sizeof(bool));
 	
 	double point_opt[3];
-	MAT_DOT_VEC_3X3(point_opt,mat_sum_inv,prod_sum);
 	
-	// Error, defined as the mean distance
-	// between the optimal point
-	// and the set of viewing lines
-	double cross_prod[3];
-	double sm[3];
-	double norm;
-	*outerr = 0;
-	for(int i=0; i<N; i++)
+	int i,j;
+	if ( (N>2) && (findConsensus) ) // find best consensus
 	{
-		sm[0] = point_opt[0] - sv_tab[i].s[0];
-		sm[1] = point_opt[1] - sv_tab[i].s[1];
-		sm[2] = point_opt[2] - sv_tab[i].s[2];
-		
-		VEC_CROSS_PRODUCT(cross_prod,sv_tab[i].v,sm);
-		VEC_LENGTH(norm,cross_prod);
-		*outerr += norm;
-	}
-	*outerr = *outerr / (double) N;
-	
-	//clean mem
-	free(sv_tab);
+		bool stop = false;
+		i=0;
+		while ( (i<N-1) && (!stop) )
+		{
+			j=i+1;
+			while ( (j<N) && (!stop) )
+			{
+				// take two views
+				take[i]=1;
+				take[j]=1;
 
-	return get_altitude_from_ECEF(point_opt[0],point_opt[1],point_opt[2]);
+				// compute the closest point
+				find_point_opt(sv_tab, N, take,
+						point_opt, &err);
+						
+				// find out how much views
+				// are close enough; compute
+				// their mean distance to the
+				// closest point (tmp_perf)
+				int nb_close_views = 0;
+				double tmp_perf=0.0,dist;
+				memset(tmp_consensus, 0, N*sizeof(int));
+				for(int k=0; k<N; k++)
+				{
+					dist = dist_line_point3D(sv_tab[i].v,sv_tab[i].s,
+											point_opt);
+					if (dist<=thres)
+					{
+						nb_close_views++;
+						tmp_consensus[k]=1;
+						tmp_perf += dist;
+					}
+				}
+				tmp_perf = tmp_perf / ( (double) nb_close_views);
+				
+				// priority to the biggest consensus
+				// but in case of equality, 
+				// take the one with best perf
+				if ( ((nb_close_views == best_consensus_score) && (tmp_perf<best_perf)) 
+					 || (nb_close_views>best_consensus_score) )
+				{
+					best_consensus_score = nb_close_views;
+					best_perf = tmp_perf;
+					memcpy(best_consensus, tmp_consensus, N*sizeof(bool));
+				}
+				
+				// maximal consensus found
+				// don't waste time
+				if (nb_close_views==N) 
+					stop=true;
+				
+				// back to original state
+				take[i]=0;
+				take[j]=0;
+				
+				j++;
+			}
+			i++;
+		}
+			
+		// update the real nb of views
+		// used by the best consensus
+		*NV = best_consensus_score;
+	}
+	else
+	{
+		// only two views, or user doesn't want
+		// to find a consensus : take all the views
+		for(int i=0;i<N;i++) best_consensus[i] = 1;
+		best_consensus_score = N;
+	}
+	
+	// final estimation, without the outliers
+	find_point_opt(sv_tab, N, best_consensus,
+						point_opt, outerr);
+	
+	// clean mem
+	free(sv_tab);
+	free(take);
+	free(best_consensus);
+	free(tmp_consensus);
+	
+	// compute altitude h
+	double h = get_altitude_from_ECEF(point_opt[0],point_opt[1],point_opt[2]);
+	if (best_consensus_score==0)
+	{
+		h = NAN;
+		*outerr = NAN;
+		*NV = 0;
+	}
+	return h;
 }
 
 

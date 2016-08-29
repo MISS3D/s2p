@@ -52,7 +52,23 @@ void geotedic_to_ECEF(double lg, double lt, double h,
 // given (X,Y,Z) ECEF coord, computes the alt above the WGS 84 ellipsoid
 double get_altitude_from_ECEF(double X, double Y, double Z);
 
+// define the line passing by point 's' with direction vector 'v'
+typedef struct 
+{
+	double s[3]; // a point in space
+	double v[3]; // a direction vector
+} SV;
+
+// distance between a 3D point P and a line (defined by its
+// normalized direction vector V and passing through a 3D point S) 
+double dist_line_point3D(double *V,double *S,double *P);
+
+// find closest 3D point from from a set of 3D lines
+void find_point_opt(SV *sv_tab, int N, bool *take,
+		double *point_opt,double *outerr);
+
 // compute the height of a point given its location inside two images
 // geometric solution
 double rpc_height_geo(struct rpc *rpc_list, 
-		double ** q_list, int N, double *outerr);
+		double ** q_list, int *N, 
+		bool findConsensus, double thres, double *outerr);

@@ -119,3 +119,12 @@ cfg['dsm_option'] = 'median'
 # vrt product, sucha asnb of views per pixel, 
 # and so on... (True).
 cfg['full_vrt'] = True
+
+# Tells whether a consensus of lines of sight
+# must be built, during triangulation step
+cfg['trg_cons'] = True
+
+# Give the threshold value (in meter) used
+# to build a consensus of lines of sight
+# during triangulation step
+cfg['thr_cons'] = 1

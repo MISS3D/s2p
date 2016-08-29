@@ -32,10 +32,10 @@ struct mat3x3 {
 
 int main_disp_to_heights(int c, char *v[])
 {
-    if (c < 9) {
+    if (c < 11) {
         fprintf(stderr, "usage:\n\t"
-                "%s global_out_dir, col, row, tw, th, z, rpc_ref.xml rpc_slave_1.xml [rpc_slave_2.xml ...]"
-              // 0         1         2    3   4   5   6       7            8                9 
+                "%s global_out_dir, col, row, tw, th, z, trg_cons, thr_cons, rpc_ref.xml, rpc_slave_1.xml, [rpc_slave_2.xml ...]"
+              // 0         1         2    3   4   5   6      7        8          9... 
                 "\n", *v);
         fprintf(stderr,"c = %d\n",c);
         return EXIT_FAILURE;
@@ -51,7 +51,9 @@ int main_disp_to_heights(int c, char *v[])
     int Y=atoi(v[3]);
     int width=atoi(v[4]);
     int height=atoi(v[5]);
-    float z = atoi(v[6]);
+    double z = atoi(v[6]);
+    bool trg_cons = atoi(v[7]);
+    double thr_cons = atof(v[8]);
     
     // build tile_dir path
     char tile_dir[1000];
@@ -63,10 +65,10 @@ int main_disp_to_heights(int c, char *v[])
     
     // read RPC
     struct rpc *initial_rpc_list;
-    int N_rpc = c-7;
+    int N_rpc = c-9;
     initial_rpc_list = (struct rpc *) malloc(N_rpc*sizeof( struct rpc ));
-    for(int i=7;i<c;i++)
-        read_rpc_file_xml(&initial_rpc_list[i-7], v[i]);
+    for(int i=9;i<c;i++)
+        read_rpc_file_xml(&initial_rpc_list[i-9], v[i]);
         
     
     // read homographies
@@ -259,27 +261,27 @@ int main_disp_to_heights(int c, char *v[])
             {
                 // Compute the related height & rpc_err
                 double err, h, hg;
-                hg = rpc_height_geo(rpc_list, q_list, N_views,  &err);
+                hg = rpc_height_geo(rpc_list, q_list, &N_views,
+                                    trg_cons, thr_cons, &err);
 
                 // Output the result in height & rpc_err maps,
                 // both in original geometry
                 heightMap[posH] = hg;
                 errMap[posH] = err;
                 nb_views[posH] = N_views;
+                
             }
             else
             {
                 heightMap[posH] = NAN;
                 errMap[posH] = NAN;
-                nb_views[posH] = NAN;
+                nb_views[posH] = 0;
             } 
         }
-    
     // save the height map / error map / nb_views
     iio_save_image_float_vec(fout_heights, heightMap, width, height, 1);
     iio_save_image_float_vec(fout_err, errMap, width, height, 1);
     iio_save_image_float_vec(fnb_views, nb_views, width, height, 1);
-    
     free(initial_rpc_list);
     free(rpc_list);
     free(H_ref_list);
