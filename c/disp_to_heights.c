@@ -282,6 +282,11 @@ int main_disp_to_heights(int c, char *v[])
     iio_save_image_float_vec(fout_heights, heightMap, width, height, 1);
     iio_save_image_float_vec(fout_err, errMap, width, height, 1);
     iio_save_image_float_vec(fnb_views, nb_views, width, height, 1);
+    
+    //clean mem
+    free(heightMap);
+    free(errMap);
+    free(nb_views);
     free(initial_rpc_list);
     free(rpc_list);
     free(H_ref_list);
@@ -294,13 +299,15 @@ int main_disp_to_heights(int c, char *v[])
     for(int i=0;i<nb_pairs;i++)
     {
         free(dispx[i]);
-        if (nch[i] > 1)
+        if (nch[i] == 1)
             free(dispy[i]);
         free(mask[i]);
     }
     free(dispx);
     free(dispy);
     free(mask);
+    for(int i=0;i<N_rpc;i++)
+        free(q_list[i]);
     free(q_list);
     free(nch);
     return 0;

@@ -653,7 +653,7 @@ double rpc_height_geo(struct rpc *rpc_list,
 				// closest point (tmp_perf)
 				int nb_close_views = 0;
 				double tmp_perf=0.0,dist;
-				memset(tmp_consensus, 0, N*sizeof(int));
+				memset(tmp_consensus, 0, N*sizeof(bool));
 				for(int k=0; k<N; k++)
 				{
 					dist = dist_line_point3D(sv_tab[i].v,sv_tab[i].s,
