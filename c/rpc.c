@@ -704,9 +704,22 @@ double rpc_height_geo(struct rpc *rpc_list,
 		best_consensus_score = N;
 	}
 	
-	// final estimation, without the outliers
-	find_point_opt(sv_tab, N, best_consensus,
-						point_opt, outerr);
+	double h;
+	if (best_consensus_score>=2)
+	{
+		// final estimation, without the outliers
+		find_point_opt(sv_tab, N, best_consensus,
+							point_opt, outerr);
+		
+		// compute altitude h
+		h = get_altitude_from_ECEF(point_opt[0],point_opt[1],point_opt[2]);
+	}
+	else
+	{
+		h = NAN;
+		*outerr = NAN;
+		*NV = 0;
+	}
 	
 	// clean mem
 	free(sv_tab);
@@ -714,14 +727,6 @@ double rpc_height_geo(struct rpc *rpc_list,
 	free(best_consensus);
 	free(tmp_consensus);
 	
-	// compute altitude h
-	double h = get_altitude_from_ECEF(point_opt[0],point_opt[1],point_opt[2]);
-	if (best_consensus_score==0)
-	{
-		h = NAN;
-		*outerr = NAN;
-		*NV = 0;
-	}
 	return h;
 }
 
