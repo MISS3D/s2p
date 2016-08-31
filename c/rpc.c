@@ -656,7 +656,7 @@ double rpc_height_geo(struct rpc *rpc_list,
 				memset(tmp_consensus, 0, N*sizeof(bool));
 				for(int k=0; k<N; k++)
 				{
-					dist = dist_line_point3D(sv_tab[i].v,sv_tab[i].s,
+					dist = dist_line_point3D(sv_tab[k].v,sv_tab[k].s,
 											point_opt);
 					if (dist<=thres)
 					{
