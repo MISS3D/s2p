@@ -114,15 +114,15 @@ cfg['srtm_dir'] = os.path.join(parent_dir, '.srtm')
 # DSM options
 cfg['dsm_option'] = 'median'
 
-# Tells whether we only want height_map.vrt 
+# Tells whether (True/False) we only want height_map.vrt 
 # and rpc_err.vrt (False) or some other
 # vrt product, sucha asnb of views per pixel, 
 # and so on... (True).
 cfg['full_vrt'] = True
 
-# Tells whether a consensus of lines of sight
+# Tells whether (0/1) a consensus of lines of sight
 # must be built, during triangulation step
-cfg['trg_cons'] = True
+cfg['trg_cons'] = 1
 
 # Give the threshold value (in meter) used
 # to build a consensus of lines of sight
