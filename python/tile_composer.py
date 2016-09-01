@@ -86,6 +86,8 @@ def mosaic_gdal2(fout, tiles_full_info, filename, w,h,z=1):
 
     tw = 0
     th = 0
+
+    files_to_remove = []
     
     for tile_dir in tiles_full_info:
         
@@ -97,6 +99,7 @@ def mosaic_gdal2(fout, tiles_full_info, filename, w,h,z=1):
         height_map = os.path.join(*s[1:])
 
         if os.path.isfile(os.path.join(cfg['out_dir'],vrt_row[row]['vrt_dir'],height_map)):
+            files_to_remove.append(os.path.join(cfg['out_dir'],vrt_row[row]['vrt_dir'],height_map))
             vrt_row[row]['vrt_body']+="\t\t<SimpleSource>\n"
             vrt_row[row]['vrt_body']+="\t\t\t<SourceFilename relativeToVRT=\"1\">%s</SourceFilename>\n" % height_map
             vrt_row[row]['vrt_body']+="\t\t\t<SourceBand>1</SourceBand>\n"
@@ -114,6 +117,7 @@ def mosaic_gdal2(fout, tiles_full_info, filename, w,h,z=1):
     for row,vrt_data in vrt_row.iteritems():
         # First, write row vrt file
         col_vrt_filename = os.path.join(cfg['out_dir'],vrt_data['vrt_dir'],os.path.basename(vrtfilename))
+        files_to_remove.append(col_vrt_filename)
         tmp_vrt_file = open(col_vrt_filename,'w')
         tmp_vrt_file.write("<VRTDataset rasterXSize=\"%i\" rasterYSize=\"%i\">\n" % (w/z,
                                                                             th/z))
@@ -139,6 +143,9 @@ def mosaic_gdal2(fout, tiles_full_info, filename, w,h,z=1):
     if cfg['vrt_to_tiff']:
         common.run('gdal_translate %s %s' % (vrtfilename, os.path.splitext(vrtfilename)[0]+".tif"))
 
+        if cfg['clean_intermediate']:
+            for f in files_to_remove:
+                common.remove_if_exists(f)
     return
 
 

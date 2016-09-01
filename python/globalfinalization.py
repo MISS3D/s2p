@@ -76,7 +76,11 @@ def write_vrt_files(tiles_full_info):
     z = cfg['subsampling_factor']
     tile_composer.mosaic_gdal2(cfg['out_dir'] + '/heightMap_N_pairs.vrt',
                                tileSizesAndPositions, 'local_merged_height_map_crop.tif', fw, fh, z)
-
+    if(cfg['clean_intermediate'] and cfg['vrt_to_tiff']):
+        for tile_dir in tileSizesAndPositions:
+            common.remove_if_exists(os.path.join(tile_dir,'local_merged_height_map_crop.tif'))
+        common.remove_if_exists(cfg['out_dir'] + '/heightMap_N_pairs.vrt')
+        
     # VRT file : height map (for each single pair)
     # VRT file : rpc_err (for each single pair)
     for i in range(0, nb_pairs):
@@ -91,10 +95,21 @@ def write_vrt_files(tiles_full_info):
 
         tile_composer.mosaic_gdal2(cfg['out_dir'] + '/heightMap_pair_%d.vrt' % (
             pair_id), pairSizesAndPositions, 'height_map_crop.tif', fw, fh, z)
+
+        if(cfg['clean_intermediate'] and cfg['vrt_to_tiff']):
+            for tile_dir in tileSizesAndPositions:
+                common.remove_if_exists(os.path.join(tile_dir,'height_map_crop.tif'))
+            common.remove_if_exists(cfg['out_dir'] +'/heightMap_pair_%d.vrt' % (pair_id))
+        
         tile_composer.mosaic_gdal2(cfg['out_dir'] + '/rpc_err_pair_%d.vrt' % (
             pair_id), pairSizesAndPositions, 'rpc_err_crop.tif', fw, fh, z)
 
-
+        if(cfg['clean_intermediate'] and cfg['vrt_to_tiff']):
+            for tile_dir in tileSizesAndPositions:
+                common.remove_if_exists(os.path.join(tile_dir,'rpc_err_crop.tif'))
+            common.remove_if_exists(cfg['out_dir'] +'/rpc_err_pair_%d.vrt' % (pair_id))
+        
+        
 def write_dsm():
     """
     Writes the DSM, from the ply files given by each tile.
@@ -105,6 +120,10 @@ def write_dsm():
 
     if cfg['vrt_to_tiff']:
         common.run('gdal_translate %s %s' % (final_dsm, os.path.splitext(final_dsm)[0]+".tif"))
+        if cfg['clean_intermediate']:
+            shutil.rmtree(os.path.join(cfg['out_dir'],'dsm'))
+            common.remove_if_exists(final_dsm);
+                          
 
 def lidar_preprocessor(output, input_plys):
     """
