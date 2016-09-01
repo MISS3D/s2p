@@ -103,6 +103,8 @@ def write_dsm():
     final_dsm = os.path.join(cfg['out_dir'], 'dsm.vrt')
     common.run("gdalbuildvrt %s %s" % (final_dsm, dsm_pieces))
 
+    if cfg['vrt_to_tiff']:
+        common.run('gdal_translate %s %s' % (final_dsm, os.path.splitext(final_dsm)[0]+".tif"))
 
 def lidar_preprocessor(output, input_plys):
     """

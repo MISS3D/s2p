@@ -135,8 +135,9 @@ def mosaic_gdal2(fout, tiles_full_info, filename, w,h,z=1):
     vrtfile.write("\t</VRTRasterBand>\n")
     vrtfile.write("</VRTDataset>\n")
     vrtfile.close()
-                      
-    #common.run('gdal_translate %s %s' % (vrtfilename, fout))
+
+    if cfg['vrt_to_tiff']:
+        common.run('gdal_translate %s %s' % (vrtfilename, os.path.splitext(vrtfilename)[0]+".tif"))
 
     return
 

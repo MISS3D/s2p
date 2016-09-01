@@ -116,3 +116,6 @@ cfg['srtm_dir'] = os.path.join(parent_dir, '.srtm')
 
 # DSM options
 cfg['dsm_option'] = 'median'
+
+# Convert vrt to plain tiffs
+cfg['vrt_to_tiff'] = True
