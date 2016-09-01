@@ -162,8 +162,8 @@ def finalize_tile(tile_info, utm_zone=None):
     ## remove overlapping areas
     height_map = os.path.join(tile_dir , 'height_map.tif')
     height_map_crop = os.path.join(tile_dir , 'height_map_crop.tif')
-    rpc_err = os.path.join(tile_dir , 'rpc_err.tif')
-    rpc_err_crop = os.path.join(tile_dir , 'rpc_err_crop.tif')
+    rpc_err_all = os.path.join(tile_dir , 'rpc_err_all.tif')
+    rpc_err_all_crop = os.path.join(tile_dir , 'rpc_err_all_crop.tif')
     crop_ref = os.path.join(tile_dir , 'roi_ref.tif')
     crop_ref_crop = os.path.join(tile_dir , 'roi_ref_crop.tif')
     
@@ -196,9 +196,20 @@ def finalize_tile(tile_info, utm_zone=None):
     if not (os.path.isfile(height_map_crop) and cfg['skip_existing']):
         common.cropImage(height_map, height_map_crop,
                          newcol, newrow, w, h)
-    if not (os.path.isfile(rpc_err_crop) and cfg['skip_existing']):
-        common.cropImage(rpc_err, rpc_err_crop,
+    if not (os.path.isfile(rpc_err_all_crop) and cfg['skip_existing']):
+        common.cropImage(rpc_err_all, rpc_err_all_crop,
                          newcol, newrow, w, h)
+    
+    if cfg['full_vrt']:
+        for img_id in xrange(1,len(cfg['images'])+1):                     
+            rpc_err_sighti = os.path.join(tile_dir , 
+                                'rpc_err_sight%d.tif' % img_id)
+            rpc_err_sighti_crop = os.path.join(tile_dir , 
+                                'rpc_err_sight%d_crop.tif' % img_id)
+            if not (os.path.isfile(rpc_err_sighti_crop) and cfg['skip_existing']):
+                common.cropImage(rpc_err_sighti, rpc_err_sighti_crop,
+                             newcol, newrow, w, h)                     
+                         
     if not (os.path.isfile(crop_ref_crop) and cfg['skip_existing']):
         common.cropImage(crop_ref, crop_ref_crop, newcol, newrow, w, h)
     

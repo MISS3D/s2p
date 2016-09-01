@@ -32,10 +32,10 @@ struct mat3x3 {
 
 int main_disp_to_heights(int c, char *v[])
 {
-    if (c < 11) {
+    if (c < 12) {
         fprintf(stderr, "usage:\n\t"
-                "%s global_out_dir, col, row, tw, th, z, trg_cons, thr_cons, rpc_ref.xml, rpc_slave_1.xml, [rpc_slave_2.xml ...]"
-              // 0         1         2    3   4   5   6      7        8          9... 
+                "%s global_out_dir, col, row, tw, th, z, trg_cons, thr_cons, full_outputs, rpc_ref.xml, rpc_slave_1.xml, [rpc_slave_2.xml ...]"
+              // 0         1         2    3   4   5   6      7        8          9         10...
                 "\n", *v);
         fprintf(stderr,"c = %d\n",c);
         return EXIT_FAILURE;
@@ -54,6 +54,7 @@ int main_disp_to_heights(int c, char *v[])
     double z = atoi(v[6]);
     bool trg_cons = atoi(v[7]);
     double thr_cons = atof(v[8]);
+    bool full_outputs = atoi(v[9]);
     
     // build tile_dir path
     char tile_dir[1000];
@@ -65,10 +66,10 @@ int main_disp_to_heights(int c, char *v[])
     
     // read RPC
     struct rpc *initial_rpc_list;
-    int N_rpc = c-9;
+    int N_rpc = c-10;
     initial_rpc_list = (struct rpc *) malloc(N_rpc*sizeof( struct rpc ));
-    for(int i=9;i<c;i++)
-        read_rpc_file_xml(&initial_rpc_list[i-9], v[i]);
+    for(int i=10;i<c;i++)
+        read_rpc_file_xml(&initial_rpc_list[i-10], v[i]);
         
     
     // read homographies
@@ -118,12 +119,26 @@ int main_disp_to_heights(int c, char *v[])
     }
     
     // build outputs paths and alloc mem
+    
+    // * heights
     char fout_heights[1000];
     sprintf(fout_heights,"%s/height_map.tif",tile_dir);
-    char fout_err[1000];
-    sprintf(fout_err,"%s/rpc_err.tif",tile_dir);
     float *heightMap = (float *) calloc(width*height, sizeof(float));
-    float *errMap = (float *) calloc(width*height, sizeof(float));
+    
+    // * rpc errors
+    typedef char tabchar[1000];
+    int size_of_fout_err_tab;
+    if (full_outputs)   size_of_fout_err_tab = N_rpc+1;
+    else            size_of_fout_err_tab = 1;
+    
+    tabchar *fout_err_tab = (tabchar *) malloc( (size_of_fout_err_tab)*sizeof(tabchar) );
+    for(int i=1; i<size_of_fout_err_tab; i++)
+        sprintf(fout_err_tab[i],"%s/rpc_err_sight%d.tif",tile_dir,i);
+    sprintf(fout_err_tab[0],"%s/rpc_err_all.tif",tile_dir);
+    float **errMap_tab = (float **) malloc((size_of_fout_err_tab)*sizeof(float *));
+    for(int i=0; i<size_of_fout_err_tab; i++)
+        errMap_tab[i] = (float *) calloc(width*height, sizeof(float));
+    
     
     // take into account pointing corrections for slave homographies
     struct mat3x3 *H_secB_list = (struct mat3x3 *) malloc(nb_pairs*sizeof( struct mat3x3 ));
@@ -156,12 +171,23 @@ int main_disp_to_heights(int c, char *v[])
     // if a view is acceptable; 
     // ref view is always acceptable
 
-    // Precisely, we wish we could known
+    // Precisely, we wish we could know
     // the number of views used for each pixel
+    int *nb_views;
     char fnb_views[1000];
-    sprintf(fnb_views,"%s/nb_views.tif",tile_dir);
-    float *nb_views = (float *) calloc(width*height, sizeof(float));
+    if (full_outputs)
+    {
+        sprintf(fnb_views,"%s/nb_views.tif",tile_dir);
+        nb_views = (int *) calloc(width*height, sizeof(int));
+    }
 
+    // We wish we could also know
+    // which view have used for each pixel
+    // (ref view always selected)
+    int *selected_views = (int *) malloc(N_rpc*sizeof(int));
+    selected_views[0]=0; 
+    
+    
     
     // ################################
     // time to build the height map 
@@ -250,43 +276,86 @@ int main_disp_to_heights(int c, char *v[])
                     q_list[push_position][1] = q1[1];
                     q_list[push_position][2] = q1[2];
                     rpc_list[push_position] = initial_rpc_list[i+1];
+                    selected_views[push_position] = i+1;
                     
                     push_position++;
                 }
                 else
                     N_views--;
             }
-            
+
             if (N_views>=2) // at least two views are required
             {
+                // Altitude
+                double hg;
+                
+                // rpc_height_geo is able to filter out
+                // aberrant views (including ref view !)
+                int N_views_updated = N_views;
+                
+                // track errors by view
+                double *err = (double *) malloc(N_views*sizeof(double));
+                
                 // Compute the related height & rpc_err
-                double err, h, hg;
-                hg = rpc_height_geo(rpc_list, q_list, &N_views,
-                                    trg_cons, thr_cons, &err);
-
+                hg = rpc_height_geo(rpc_list, q_list, &N_views_updated,
+                                    trg_cons, thr_cons, err);
+                
+                // Error, defined as the mean distance
+                // between the optimal point
+                // and the set of viewing lines
+                if (full_outputs)
+                  for(int i=0; i<size_of_fout_err_tab; i++)
+                    errMap_tab[i][posH] = NAN;
+                    
+                double sum = 0.0;
+                double nb_elt = 0.0;
+                if (N_views_updated>=2)
+                {
+                    for(int i=0; i<N_views; i++)
+                        if ( !isnan(err[i]) )
+                        {
+                            sum += err[i];
+                            nb_elt++;
+                            
+                            // +1 because index 0 is dedicated
+                            // to the mean distance
+                            if (full_outputs)
+                              errMap_tab[selected_views[i]+1][posH] = err[i];
+                        }
+                    sum = sum / nb_elt;
+                }
+                else
+                    sum = NAN;
+                    
                 // Output the result in height & rpc_err maps,
                 // both in original geometry
                 heightMap[posH] = hg;
-                errMap[posH] = err;
-                nb_views[posH] = N_views;
+                // * index 0 dedicated to mean distance
+                errMap_tab[0][posH] = sum;
+                if (full_outputs)
+                  nb_views[posH] = N_views_updated;
                 
+                free(err);
             }
             else
             {
                 heightMap[posH] = NAN;
-                errMap[posH] = NAN;
-                nb_views[posH] = 0;
+                errMap_tab[0][posH] = NAN;
+                if (full_outputs)
+                    nb_views[posH] = 0;
             } 
         }
     // save the height map / error map / nb_views
     iio_save_image_float_vec(fout_heights, heightMap, width, height, 1);
-    iio_save_image_float_vec(fout_err, errMap, width, height, 1);
-    iio_save_image_float_vec(fnb_views, nb_views, width, height, 1);
+    for(int i=0;i<size_of_fout_err_tab;i++)
+        iio_save_image_float_vec(fout_err_tab[i], errMap_tab[i], width, height, 1);
+    if (full_outputs)
+        iio_save_image_int(fnb_views, nb_views, width, height);
     
-    //clean mem
+    // clean mem
     free(heightMap);
-    free(errMap);
-    free(nb_views);
+    if (full_outputs)
+        free(nb_views);
     free(initial_rpc_list);
     free(rpc_list);
     free(H_ref_list);
@@ -306,10 +375,16 @@ int main_disp_to_heights(int c, char *v[])
     free(dispx);
     free(dispy);
     free(mask);
+    free(nch);
+    for(int i=0;i<size_of_fout_err_tab;i++)
+        free(errMap_tab[i]);
+    free(errMap_tab);
+    free(fout_err_tab);
     for(int i=0;i<N_rpc;i++)
         free(q_list[i]);
     free(q_list);
-    free(nch);
+    free(selected_views);
+    
     return 0;
 }
 

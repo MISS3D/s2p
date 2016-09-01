@@ -545,7 +545,6 @@ double dist_line_point3D(double *V,double *S,double *P)
 // find closest 3D point from from a set of 3D lines
 void find_point_opt(SV *sv_tab, int N, bool *take,
 		double *point_opt,double *outerr)
-		
 {
 	double prod1[3][3];
 	double prod2[3];
@@ -572,20 +571,6 @@ void find_point_opt(SV *sv_tab, int N, bool *take,
 
 	// find the optimal point
 	MAT_DOT_VEC_3X3(point_opt,mat_sum_inv,prod_sum);
-
-	// Error, defined as the mean distance
-	// between the optimal point
-	// and the set of viewing lines
-	*outerr = 0.0;
-	double nb_elt = 0.0;
-	for(int i=0; i<N; i++)
-		if (take[i])
-		{
-			*outerr += dist_line_point3D(sv_tab[i].v,sv_tab[i].s,point_opt);
-			nb_elt++;
-		}
-	*outerr = *outerr / nb_elt;
-	
 }
 
 // compute the height of a point given its location inside two images
@@ -596,7 +581,6 @@ double rpc_height_geo(struct rpc *rpc_list,
 {
 	
 	int N = *NV;
-	
 	double alt1=3000.;
 	double alt2=45.;
 	double X1,Y1,Z1,X2,Y2,Z2;
@@ -661,7 +645,7 @@ double rpc_height_geo(struct rpc *rpc_list,
 					if (dist<=thres)
 					{
 						nb_close_views++;
-						tmp_consensus[k]=1;
+						tmp_consensus[k]=true;
 						tmp_perf += dist;
 					}
 				}
@@ -700,24 +684,36 @@ double rpc_height_geo(struct rpc *rpc_list,
 	{
 		// only two views, or user doesn't want
 		// to find a consensus : take all the views
-		for(int i=0;i<N;i++) best_consensus[i] = 1;
+		for(int i=0;i<N;i++) best_consensus[i] = true;
 		best_consensus_score = N;
 	}
-	
-	double h;
+		
+	double h,dist;
 	if (best_consensus_score>=2)
 	{
 		// final estimation, without the outliers
 		find_point_opt(sv_tab, N, best_consensus,
 							point_opt, outerr);
-		
+	
+		// Errors, defined as the distance
+		// between each viewing line
+		// and the optimal point
+		for(int i=0; i<N; i++)
+		{
+			if (best_consensus[i])
+				outerr[i] = dist_line_point3D(sv_tab[i].v,sv_tab[i].s,point_opt);
+			else
+				outerr[i] = NAN;
+		}
+
 		// compute altitude h
 		h = get_altitude_from_ECEF(point_opt[0],point_opt[1],point_opt[2]);
 	}
 	else
 	{
 		h = NAN;
-		*outerr = NAN;
+		for(int i=0; i<N; i++)
+			outerr[i] = NAN;
 		*NV = 0;
 	}
 	

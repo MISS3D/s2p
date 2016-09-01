@@ -79,14 +79,21 @@ def write_vrt_files(tiles_full_info):
     tile_composer.mosaic_stitch( os.path.join(cfg['out_dir'], 'height_map.vrt'),
                                tileSizesAndPositions, 'height_map_crop.tif', fw, fh, z)
                                
-    # VRT file : rpc_err
-    tile_composer.mosaic_stitch( os.path.join(cfg['out_dir'], 'rpc_err.vrt'),
-                               tileSizesAndPositions, 'rpc_err_crop.tif', fw, fh, z)
-                               
+    # VRT file : rpc_err_all
+    tile_composer.mosaic_stitch( os.path.join(cfg['out_dir'], 'rpc_err_all.vrt'),
+                               tileSizesAndPositions, 'rpc_err_all_crop.tif', fw, fh, z)
+    
     if cfg['full_vrt']:
         # VRT file : nb_views
         tile_composer.mosaic_stitch( os.path.join(cfg['out_dir'], 'nb_views.vrt'),
                                tileSizesAndPositions, 'nb_views_crop.tif', fw, fh, z)
+        
+        # rpc_err_sighti                       
+        for img_id in xrange(1,len(cfg['images'])+1):                     
+            rpc_err_sighti = 'rpc_err_sight%d.vrt' % img_id
+            rpc_err_sighti_crop = 'rpc_err_sight%d_crop.tif' % img_id
+            tile_composer.mosaic_stitch( os.path.join(cfg['out_dir'], rpc_err_sighti),
+                                   tileSizesAndPositions, rpc_err_sighti_crop, fw, fh, z)
 
 
 def write_dsm():
