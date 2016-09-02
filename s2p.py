@@ -208,7 +208,7 @@ def process_tile(tile_info):
 
         # triangulation
         if (cfg['skip_existing'] and
-            os.path.isfile(os.path.join(out_dir, 'height_map.tif'))):
+            os.path.isfile(os.path.join(tile_dir, 'height_map.tif'))):
             print '\ttriangulation on tile %d %d already done, skip' % (col, row)
         else:
             print '\ttriangulating tile %d %d...' % (col, row)
