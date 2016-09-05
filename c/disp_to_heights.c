@@ -138,7 +138,7 @@ int main_disp_to_heights(int c, char *v[])
     float **errMap_tab = (float **) malloc((size_of_fout_err_tab)*sizeof(float *));
     for(int i=0; i<size_of_fout_err_tab; i++)
         errMap_tab[i] = (float *) calloc(width*height, sizeof(float));
-    
+        
     
     // take into account pointing corrections for slave homographies
     struct mat3x3 *H_secB_list = (struct mat3x3 *) malloc(nb_pairs*sizeof( struct mat3x3 ));
@@ -187,6 +187,42 @@ int main_disp_to_heights(int c, char *v[])
     int *selected_views = (int *) malloc(N_rpc*sizeof(int));
     selected_views[0]=0; 
     
+    // Another interesting thing :
+    // track the vector from an opt. point
+    // to a given view
+    double ** vec_optpt_to_view;
+    tabchar *fout_vec_tab;
+    float **img_vec_tab;
+    if (full_outputs)
+    {
+        vec_optpt_to_view = (double **) malloc(N_rpc*sizeof( double * ));
+        for(int i=0; i<N_rpc; i++)
+            vec_optpt_to_view[i] = (double *) malloc(3*sizeof( double ));
+
+        fout_vec_tab = (tabchar *) malloc( N_rpc*sizeof(tabchar) );
+        for(int i=0; i<N_rpc; i++)
+            sprintf(fout_vec_tab[i],"%s/rpc_err_vec%d.tif",tile_dir,i+1);
+            
+        img_vec_tab = (float **) malloc(N_rpc*sizeof( float * ));
+        for(int i=0;i<N_rpc;i++)
+            img_vec_tab[i] = (float *) malloc(3*width*height*sizeof( float ));
+    }
+    
+    // Another interesting thing :
+    // output the 2D disparities
+    // for a given image pair
+    tabchar *fout_disp2D_tab;
+    float ** disp2D_tab;
+    if (full_outputs)
+    {
+        fout_disp2D_tab = (tabchar *) malloc( nb_pairs*sizeof(tabchar) );
+        for(int i=0; i<nb_pairs; i++)
+            sprintf(fout_disp2D_tab[i],"%s/pair_%d/disp2D.tif",tile_dir,i+1);
+        
+        disp2D_tab = (float **) malloc(nb_pairs*sizeof( float * ));
+        for(int i=0;i<nb_pairs;i++)
+            disp2D_tab[i] = (float *) malloc(3*width*height*sizeof( float ));
+    }
     
     
     // ################################
@@ -275,13 +311,39 @@ int main_disp_to_heights(int c, char *v[])
                     q_list[push_position][0] = q1[0];
                     q_list[push_position][1] = q1[1];
                     q_list[push_position][2] = q1[2];
+
                     rpc_list[push_position] = initial_rpc_list[i+1];
                     selected_views[push_position] = i+1;
-                    
                     push_position++;
+                    
+                    // 2D disparity
+                    if (full_outputs)
+                      for(int t=0; t<3; t++)
+                        disp2D_tab[i][width*3*y+3*x+t] = q1[t]-q0[t];
                 }
                 else
+                {
+                    // 2D disparity
+                    if (full_outputs)
+                      for(int t=0; t<3; t++)
+                        disp2D_tab[i][width*3*y+3*x+t] = NAN;
                     N_views--;
+                }
+            }
+
+            // some initialisations
+            heightMap[posH] = NAN;
+            for(int i=0; i<size_of_fout_err_tab; i++)
+                errMap_tab[i][posH] = NAN;
+            if (full_outputs)
+            {
+                nb_views[posH] = 0;
+                for(int i=0; i<N_rpc; i++)
+                  for(int t=0; t<3; t++)
+                    {
+                        vec_optpt_to_view[i][t] = NAN;
+                        img_vec_tab[i][width*3*y+3*x+t] = NAN;
+                    }
             }
 
             if (N_views>=2) // at least two views are required
@@ -296,53 +358,54 @@ int main_disp_to_heights(int c, char *v[])
                 // track errors by view
                 double *err = (double *) malloc(N_views*sizeof(double));
                 
+                // track consensus set
+                bool *best_consensus = (bool *) calloc(N_views,sizeof(bool));
+                
+               
                 // Compute the related height & rpc_err
                 hg = rpc_height_geo(rpc_list, q_list, &N_views_updated,
-                                    trg_cons, thr_cons, err);
+                                    trg_cons, thr_cons, 
+                                    err, vec_optpt_to_view,
+                                    best_consensus);
                 
                 // Error, defined as the mean distance
                 // between the optimal point
                 // and the set of viewing lines
-                if (full_outputs)
-                  for(int i=0; i<size_of_fout_err_tab; i++)
-                    errMap_tab[i][posH] = NAN;
-                    
+                // (if they are part of the consensus)
                 double sum = 0.0;
                 double nb_elt = 0.0;
                 if (N_views_updated>=2)
                 {
                     for(int i=0; i<N_views; i++)
-                        if ( !isnan(err[i]) )
+                    {
+                        if ( best_consensus[i] )
                         {
-                            sum += err[i];
+                            sum += pow(err[i],2.0);
                             nb_elt++;
-                            
-                            // +1 because index 0 is dedicated
-                            // to the mean distance
-                            if (full_outputs)
-                              errMap_tab[selected_views[i]+1][posH] = err[i];
                         }
-                    sum = sum / nb_elt;
+                        // +1 because index 0 is dedicated
+                        // to the mean distance
+                        if (full_outputs)
+                          errMap_tab[selected_views[i]+1][posH] = err[i];
+                    }
+                    sum = sqrt(sum/nb_elt);
+                                            
+                    // Output the results in original geometry 
+                    // * height
+                    heightMap[posH] = hg;
+                    // * mean error distance (dedicated to index 0)
+                    errMap_tab[0][posH] = sum;
+                    if (full_outputs)
+                      nb_views[posH] = N_views_updated;
+                    //* error vectors                    
+                    if (full_outputs)
+                      for(int i=0; i<N_rpc; i++)
+                        for(int t=0; t<3; t++)
+                            img_vec_tab[i][width*3*y+3*x+t] = vec_optpt_to_view[i][t];
                 }
-                else
-                    sum = NAN;
-                    
-                // Output the result in height & rpc_err maps,
-                // both in original geometry
-                heightMap[posH] = hg;
-                // * index 0 dedicated to mean distance
-                errMap_tab[0][posH] = sum;
-                if (full_outputs)
-                  nb_views[posH] = N_views_updated;
                 
                 free(err);
-            }
-            else
-            {
-                heightMap[posH] = NAN;
-                errMap_tab[0][posH] = NAN;
-                if (full_outputs)
-                    nb_views[posH] = 0;
+                free(best_consensus);
             } 
         }
     // save the height map / error map / nb_views
@@ -350,7 +413,13 @@ int main_disp_to_heights(int c, char *v[])
     for(int i=0;i<size_of_fout_err_tab;i++)
         iio_save_image_float_vec(fout_err_tab[i], errMap_tab[i], width, height, 1);
     if (full_outputs)
+    {
         iio_save_image_int(fnb_views, nb_views, width, height);
+        for(int i=0;i<N_rpc;i++)
+            iio_save_image_float_vec(fout_vec_tab[i], img_vec_tab[i], width, height, 3);
+        for(int i=0;i<nb_pairs;i++)
+            iio_save_image_float_vec(fout_disp2D_tab[i], disp2D_tab[i], width, height, 3);
+    }
     
     // clean mem
     free(heightMap);
@@ -384,7 +453,23 @@ int main_disp_to_heights(int c, char *v[])
         free(q_list[i]);
     free(q_list);
     free(selected_views);
-    
+    if (full_outputs)
+    {
+        for(int i=0; i<N_rpc; i++)
+        {
+            free(vec_optpt_to_view[i]);
+            free(img_vec_tab[i]);
+        }
+        for(int i=0; i<nb_pairs; i++)
+        {
+            free(disp2D_tab[i]);
+        }
+        free(vec_optpt_to_view);
+        free(img_vec_tab);
+        free(fout_vec_tab);
+        free(fout_disp2D_tab);
+        free(disp2D_tab);
+    }
     return 0;
 }
 

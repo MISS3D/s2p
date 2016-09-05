@@ -56,12 +56,17 @@ double get_altitude_from_ECEF(double X, double Y, double Z);
 typedef struct 
 {
 	double s[3]; // a point in space
+	double p[3]; // a point in space
 	double v[3]; // a direction vector
 } SV;
 
 // distance between a 3D point P and a line (defined by its
 // normalized direction vector V and passing through a 3D point S) 
 double dist_line_point3D(double *V,double *S,double *P);
+
+// compute the vector VEC between a 3D point P0 and a line (
+// passing through two 3D points P and S)
+double vec_pt_to_line3D(double *P,double *S,double *P0,double *VEC);
 
 // find closest 3D point from from a set of 3D lines
 void find_point_opt(SV *sv_tab, int N, bool *take,
@@ -70,5 +75,6 @@ void find_point_opt(SV *sv_tab, int N, bool *take,
 // compute the height of a point given its location inside two images
 // geometric solution
 double rpc_height_geo(struct rpc *rpc_list, 
-		double ** q_list, int *N, 
-		bool findConsensus, double thres, double *outerr);
+		double ** q_list, int *NV, 
+		bool findConsensus, double thres, 
+		double *outerr, double **list_vec, bool *best_consensus);

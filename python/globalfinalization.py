@@ -77,23 +77,34 @@ def write_vrt_files(tiles_full_info):
     
     # VRT file : height map 
     tile_composer.mosaic_stitch( os.path.join(cfg['out_dir'], 'height_map.vrt'),
-                               tileSizesAndPositions, 'height_map_crop.tif', fw, fh, z)
+                               tileSizesAndPositions, 'height_map_crop.tif', fw, fh, 1, z)
                                
     # VRT file : rpc_err_all
     tile_composer.mosaic_stitch( os.path.join(cfg['out_dir'], 'rpc_err_all.vrt'),
-                               tileSizesAndPositions, 'rpc_err_all_crop.tif', fw, fh, z)
+                               tileSizesAndPositions, 'rpc_err_all_crop.tif', fw, fh, 1, z)
     
     if cfg['full_vrt']:
         # VRT file : nb_views
         tile_composer.mosaic_stitch( os.path.join(cfg['out_dir'], 'nb_views.vrt'),
-                               tileSizesAndPositions, 'nb_views_crop.tif', fw, fh, z)
+                               tileSizesAndPositions, 'nb_views_crop.tif', fw, fh, 1, z)
         
-        # rpc_err_sighti                       
+        # rpc_err_sighti &  rpc_err_veci                     
         for img_id in xrange(1,len(cfg['images'])+1):                     
             rpc_err_sighti = 'rpc_err_sight%d.vrt' % img_id
             rpc_err_sighti_crop = 'rpc_err_sight%d_crop.tif' % img_id
             tile_composer.mosaic_stitch( os.path.join(cfg['out_dir'], rpc_err_sighti),
-                                   tileSizesAndPositions, rpc_err_sighti_crop, fw, fh, z)
+                                   tileSizesAndPositions, rpc_err_sighti_crop, fw, fh, 1, z)
+            rpc_err_veci = 'rpc_err_vec%d.vrt' % img_id
+            rpc_err_veci_crop = 'rpc_err_vec%d_crop.tif' % img_id
+            tile_composer.mosaic_stitch( os.path.join(cfg['out_dir'], rpc_err_veci),
+                                   tileSizesAndPositions, rpc_err_veci_crop, fw, fh, 3, z)
+                                   
+        # 2D disparities (if originaly computed in epipolar geometry)                     
+        for pair_id in xrange(1,nb_pairs+1):                     
+            disp2Di = 'disp2D_pair%d.vrt' % pair_id
+            disp2Di_crop = 'pair_%d/disp2D_crop.tif' % pair_id
+            tile_composer.mosaic_stitch( os.path.join(cfg['out_dir'], disp2Di),
+                                   tileSizesAndPositions, disp2Di_crop, fw, fh, 3, z)
 
 
 def write_dsm():

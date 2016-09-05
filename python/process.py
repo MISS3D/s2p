@@ -158,6 +158,7 @@ def finalize_tile(tile_info, utm_zone=None):
     ov = tile_info['overlap']
     pos = tile_info['position_type']
     img1, rpc1 = cfg['images'][0]['img'], cfg['images'][0]['rpc']
+    nb_pairs = tile_info['number_of_pairs']
 
     ## remove overlapping areas
     height_map = os.path.join(tile_dir , 'height_map.tif')
@@ -201,21 +202,42 @@ def finalize_tile(tile_info, utm_zone=None):
                          newcol, newrow, w, h)
     
     if cfg['full_vrt']:
-        for img_id in xrange(1,len(cfg['images'])+1):                     
+        
+        if not (os.path.isfile(nb_views_crop) and cfg['skip_existing']):
+            common.cropImage(nb_views, nb_views_crop, newcol, newrow, w, h)
+            
+        for img_id in xrange(1,len(cfg['images'])+1):  
+            # err by sight                   
             rpc_err_sighti = os.path.join(tile_dir , 
                                 'rpc_err_sight%d.tif' % img_id)
             rpc_err_sighti_crop = os.path.join(tile_dir , 
                                 'rpc_err_sight%d_crop.tif' % img_id)
             if not (os.path.isfile(rpc_err_sighti_crop) and cfg['skip_existing']):
                 common.cropImage(rpc_err_sighti, rpc_err_sighti_crop,
-                             newcol, newrow, w, h)                     
-                         
+                             newcol, newrow, w, h) 
+            # err vector by sight (from opt point to a given sight)                                   
+            rpc_err_veci = os.path.join(tile_dir , 
+                                'rpc_err_vec%d.tif' % img_id)
+            rpc_err_veci_crop = os.path.join(tile_dir , 
+                                'rpc_err_vec%d_crop.tif' % img_id)
+            if not (os.path.isfile(rpc_err_veci_crop) and cfg['skip_existing']):
+                common.cropImage(rpc_err_veci, rpc_err_veci_crop,
+                             newcol, newrow, w, h)           
+                             
+        for pair_id in xrange(1,nb_pairs+1):
+            # 2D disparities (if originaly computed in epipolar geometry)
+            disp2Di = os.path.join(tile_dir ,
+                            'pair_%d/disp2D.tif' % pair_id)
+            disp2Di_crop = os.path.join(tile_dir ,
+                            'pair_%d/disp2D_crop.tif' % pair_id)
+            if not (os.path.isfile(disp2Di_crop) and cfg['skip_existing']):
+                common.cropImage(disp2Di, disp2Di_crop,
+                             newcol, newrow, w, h)
+        
+    
+    # ref                     
     if not (os.path.isfile(crop_ref_crop) and cfg['skip_existing']):
         common.cropImage(crop_ref, crop_ref_crop, newcol, newrow, w, h)
-    
-    if cfg['full_vrt']:
-        if not (os.path.isfile(nb_views_crop) and cfg['skip_existing']):
-            common.cropImage(nb_views, nb_views_crop, newcol, newrow, w, h)
 
     # colors
     color_crop_ref(tile_info, cfg['images'][0]['clr'])
