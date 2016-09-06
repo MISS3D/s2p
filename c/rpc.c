@@ -472,6 +472,7 @@ void geotedic_to_ECEF(double lg, double lt, double h,
 }
 
 // given (X,Y,Z) ECEF coord, computes the alt above the WGS 84 ellipsoid
+// (faster than ECEF_to_lgt_lat_alt, but only gives the altitude)
 double get_altitude_from_ECEF(double X, double Y, double Z)
 {
 	double p = sqrt(X*X+Y*Y);
@@ -497,6 +498,37 @@ double get_altitude_from_ECEF(double X, double Y, double Z)
 	}
 	
 	return h;
+}
+
+// given (X,Y,Z) ECEF coord, computes the lat/long/alt 
+// above the WGS 84 ellipsoid
+void ECEF_to_lgt_lat_alt(double X, double Y, double Z,
+						 double *lgt, double *lat, double *h)
+{         
+	double E2=E*E;
+	double deg2rad=atan2(1,1)/45.;
+	double epsilon_phi = 1e-12;
+	double kpi=45./atan2(1,1);
+
+	double R=sqrt(X*X+Y*Y);
+	double phi1 = atan2(Z,R*(1-A*E2/sqrt(X*X+Y*Y+Z*Z)));
+	double phi0 = phi1 + 10.*epsilon_phi;
+
+	// altitude
+	int max_nb_iter=15,nb_iter=0;
+	while ( (fabs(phi1-phi0) > epsilon_phi) && (nb_iter <= max_nb_iter) ) 
+	{
+		phi0 = phi1;
+      	phi1 = atan2(Z/R,1-A*E2*cos(phi0)/(R*sqrt(1-E2*sin(phi0)*sin(phi0))));
+		*h=R/cos(phi1)-A/sqrt(1-E2*sin(phi1)*sin(phi1));
+		nb_iter++;
+	}
+	
+	// longitude
+	*lgt = atan2(Y,X)*kpi;
+	
+	//latitude
+	*lat = phi1*kpi;
 }
 
 // distance between a 3D point P and a line (defined by its
@@ -526,6 +558,7 @@ double vec_pt_to_line3D(double *P,double *S,double *P0,double *VEC)
 	double dot_prod_diff10_diff21;
 	double t,norm_diff21;
 	double VT[3];
+	double diffVT0[3];
 	double norm_diffVT0;
 	
 	VEC_DIFF(diff10,P,P0);
@@ -535,9 +568,15 @@ double vec_pt_to_line3D(double *P,double *S,double *P0,double *VEC)
 	t=-dot_prod_diff10_diff21 / ( norm_diff21*norm_diff21 );
 	VEC_COPY(VT,P)
 	VEC_ACCUM(VT,t,diff21);
-	VEC_DIFF(VEC,VT,P0);
+	VEC_DIFF(diffVT0,VT,P0);
 	
-	VEC_LENGTH(norm_diffVT0,VEC);
+	for(int t=0;t<3;t++)
+	{
+		VEC[t] = P0[t];
+		VEC[t+3] = VT[t];
+	}
+	
+	VEC_LENGTH(norm_diffVT0,diffVT0);
 	return norm_diffVT0;
 }
 
@@ -692,6 +731,7 @@ double rpc_height_geo(struct rpc *rpc_list,
 	}
 		
 	double h,dist;
+	//double lgt,lat,h2;
 	if (best_consensus_score>=2)
 	{
 		// final estimation, without the outliers
@@ -706,6 +746,7 @@ double rpc_height_geo(struct rpc *rpc_list,
 
 		// compute altitude h
 		h = get_altitude_from_ECEF(point_opt[0],point_opt[1],point_opt[2]);
+		//ECEF_to_lgt_lat_alt(point_opt[0],point_opt[1],point_opt[2],&lgt,&lat,&h2);
 	}
 	else
 	{

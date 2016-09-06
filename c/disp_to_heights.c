@@ -197,7 +197,7 @@ int main_disp_to_heights(int c, char *v[])
     {
         vec_optpt_to_view = (double **) malloc(N_rpc*sizeof( double * ));
         for(int i=0; i<N_rpc; i++)
-            vec_optpt_to_view[i] = (double *) malloc(3*sizeof( double ));
+            vec_optpt_to_view[i] = (double *) malloc(6*sizeof( double ));
 
         fout_vec_tab = (tabchar *) malloc( N_rpc*sizeof(tabchar) );
         for(int i=0; i<N_rpc; i++)
@@ -206,6 +206,22 @@ int main_disp_to_heights(int c, char *v[])
         img_vec_tab = (float **) malloc(N_rpc*sizeof( float * ));
         for(int i=0;i<N_rpc;i++)
             img_vec_tab[i] = (float *) malloc(3*width*height*sizeof( float ));
+    }
+    
+    // Another interesting thing :
+    // reproject the above vectors
+    // into original geometry
+    tabchar *fout_rpj_tab;
+    float **rpj_vec_tab;
+    if (full_outputs)
+    {
+        fout_rpj_tab = (tabchar *) malloc( N_rpc*sizeof(tabchar) );
+        for(int i=0; i<N_rpc; i++)
+            sprintf(fout_rpj_tab[i],"%s/rpc_err_vec_rpj%d.tif",tile_dir,i+1);
+            
+        rpj_vec_tab = (float **) malloc(N_rpc*sizeof( float * ));
+        for(int i=0;i<N_rpc;i++)
+            rpj_vec_tab[i] = (float *) malloc(3*width*height*sizeof( float ));
     }
     
     // Another interesting thing :
@@ -256,6 +272,11 @@ int main_disp_to_heights(int c, char *v[])
             
             for(int i=0;i<nb_pairs;i++) // for each slave image
             {
+                // 2D disparity initialization
+                if (full_outputs)
+                  for(int t=0; t<3; t++)
+                    disp2D_tab[i][width*3*y+3*x+t] = NAN;
+                
                 // Now, project q0 (from ref image)
                 // to the disparity map : p0
                 applyHom(p0, H_ref_list[i].val, q0);
@@ -318,17 +339,11 @@ int main_disp_to_heights(int c, char *v[])
                     
                     // 2D disparity
                     if (full_outputs)
-                      for(int t=0; t<3; t++)
+                      for(int t=0; t<2; t++)
                         disp2D_tab[i][width*3*y+3*x+t] = q1[t]-q0[t];
                 }
                 else
-                {
-                    // 2D disparity
-                    if (full_outputs)
-                      for(int t=0; t<3; t++)
-                        disp2D_tab[i][width*3*y+3*x+t] = NAN;
                     N_views--;
-                }
             }
 
             // some initialisations
@@ -342,7 +357,9 @@ int main_disp_to_heights(int c, char *v[])
                   for(int t=0; t<3; t++)
                     {
                         vec_optpt_to_view[i][t] = NAN;
+                        vec_optpt_to_view[i][t+3] = NAN;
                         img_vec_tab[i][width*3*y+3*x+t] = NAN;
+                        rpj_vec_tab[i][width*3*y+3*x+t] = NAN;
                     }
             }
 
@@ -395,13 +412,44 @@ int main_disp_to_heights(int c, char *v[])
                     heightMap[posH] = hg;
                     // * mean error distance (dedicated to index 0)
                     errMap_tab[0][posH] = sum;
+                 
+                                        
                     if (full_outputs)
+                    {
+                      //* nb of views  
                       nb_views[posH] = N_views_updated;
-                    //* error vectors                    
-                    if (full_outputs)
-                      for(int i=0; i<N_rpc; i++)
+                      //* error vectors  
+                      int index;
+                      double lgt1,lat1,alt1,pos1[2];
+                      double lgt2,lat2,alt2,pos2[2];
+                      for(int i=0; i<N_views; i++)
+                      {
+                        index = selected_views[i];
                         for(int t=0; t<3; t++)
-                            img_vec_tab[i][width*3*y+3*x+t] = vec_optpt_to_view[i][t];
+                            img_vec_tab[i][width*3*y+3*x+t] = 
+                                 vec_optpt_to_view[index][t+3]
+                                 -vec_optpt_to_view[index][t];
+                        
+                        // reproject those vectors
+                        ECEF_to_lgt_lat_alt(vec_optpt_to_view[index][0], 
+                                            vec_optpt_to_view[index][1], 
+                                            vec_optpt_to_view[index][2],
+                                            &lgt1,&lat1,&alt1);                                     
+                        ECEF_to_lgt_lat_alt(vec_optpt_to_view[index][3], 
+                                            vec_optpt_to_view[index][4], 
+                                            vec_optpt_to_view[index][5],
+                                            &lgt2,&lat2,&alt2);
+                                            
+                        eval_rpci(pos1, &initial_rpc_list[0], lgt1, lat1, alt1);
+                        eval_rpci(pos2, &initial_rpc_list[0], lgt2, lat2, alt2);
+                        
+                        for(int t=0; t<2; t++)
+                            rpj_vec_tab[i][width*3*y+3*x+t] = pos2[t]-pos1[t];
+                            
+                        //printf("vec reproj %d = %f %f\n",index,pos2[0]-pos1[0],pos2[1]-pos1[1]);
+                            
+					  }	 
+                    }
                 }
                 
                 free(err);
@@ -416,11 +464,14 @@ int main_disp_to_heights(int c, char *v[])
     {
         iio_save_image_int(fnb_views, nb_views, width, height);
         for(int i=0;i<N_rpc;i++)
+        {
             iio_save_image_float_vec(fout_vec_tab[i], img_vec_tab[i], width, height, 3);
+            iio_save_image_float_vec(fout_rpj_tab[i], rpj_vec_tab[i], width, height, 3);
+        }
         for(int i=0;i<nb_pairs;i++)
             iio_save_image_float_vec(fout_disp2D_tab[i], disp2D_tab[i], width, height, 3);
     }
-    
+
     // clean mem
     free(heightMap);
     if (full_outputs)
@@ -459,6 +510,7 @@ int main_disp_to_heights(int c, char *v[])
         {
             free(vec_optpt_to_view[i]);
             free(img_vec_tab[i]);
+            free(rpj_vec_tab[i]);
         }
         for(int i=0; i<nb_pairs; i++)
         {
@@ -466,7 +518,9 @@ int main_disp_to_heights(int c, char *v[])
         }
         free(vec_optpt_to_view);
         free(img_vec_tab);
+        free(rpj_vec_tab);
         free(fout_vec_tab);
+        free(fout_rpj_tab);
         free(fout_disp2D_tab);
         free(disp2D_tab);
     }

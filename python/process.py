@@ -222,6 +222,15 @@ def finalize_tile(tile_info, utm_zone=None):
                                 'rpc_err_vec%d_crop.tif' % img_id)
             if not (os.path.isfile(rpc_err_veci_crop) and cfg['skip_existing']):
                 common.cropImage(rpc_err_veci, rpc_err_veci_crop,
+                             newcol, newrow, w, h) 
+                                       
+            # reprojected err vector by sight (from opt point to a given sight)                                   
+            rpc_err_vec_rpji = os.path.join(tile_dir , 
+                                'rpc_err_vec_rpj%d.tif' % img_id)
+            rpc_err_vec_rpji_crop = os.path.join(tile_dir , 
+                                'rpc_err_vec_rpj%d_crop.tif' % img_id)
+            if not (os.path.isfile(rpc_err_vec_rpji_crop) and cfg['skip_existing']):
+                common.cropImage(rpc_err_vec_rpji, rpc_err_vec_rpji_crop,
                              newcol, newrow, w, h)           
                              
         for pair_id in xrange(1,nb_pairs+1):
