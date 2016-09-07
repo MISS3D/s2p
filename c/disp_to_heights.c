@@ -30,10 +30,6 @@ struct mat3x3 {
     double val[3][3];
 };
 
-bool opening_test(char const* file)
-{
-    return (fopen(file,"r") != NULL);
-}
 
 int main_disp_to_heights(int c, char *v[])
 {
@@ -97,8 +93,11 @@ int main_disp_to_heights(int c, char *v[])
     for(int i=0;i<nb_pairs;i++)
     {
         sprintf(tmp_path,"%s/pair_%d/pointing.txt",tile_dir,i+1);
-        if (!opening_test(tmp_path))
+        FILE *test = fopen(tmp_path,"r");
+        if ( test == NULL)
             sprintf(tmp_path,"%s/global_pointing_pair_%d.txt",global_out_dir,i+1);
+        else
+            fclose(test);
         
         read_matrix(A_list[i].val, tmp_path); 
     }
