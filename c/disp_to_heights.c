@@ -481,9 +481,9 @@ int main_disp_to_heights(int c, char *v[])
             } 
         }
     // save the height map / error map / nb_views
-    iio_save_image_float_vec(fout_heights, heightMap, width, height, 1);
+    iio_save_image_float(fout_heights, heightMap, width, height);
     for(int i=0;i<size_of_fout_err_tab;i++)
-        iio_save_image_float_vec(fout_err_tab[i], errMap_tab[i], width, height, 1);
+        iio_save_image_float(fout_err_tab[i], errMap_tab[i], width, height);
     if (full_outputs)
     {
         iio_save_image_int(fnb_views, nb_views, width, height);
