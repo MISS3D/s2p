@@ -122,7 +122,8 @@ int main_disp_to_heights(int c, char *v[])
     for(int i=0;i<nb_pairs;i++)
     {
         sprintf(tmp_path,"%s/pair_%d/rectified_mask.png",tile_dir,i+1);
-        mask[i] = iio_read_image_float_split(tmp_path, &nx[i], &ny[i], &nch[i]);
+        int nbch;
+        mask[i] = iio_read_image_float_split(tmp_path, &nx[i], &ny[i], &nbch);
     }
     
     // build outputs paths and alloc mem
