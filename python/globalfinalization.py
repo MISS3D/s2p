@@ -89,19 +89,25 @@ def write_vrt_files(tiles_full_info):
                                tileSizesAndPositions, 'nb_views_crop.tif', fw, fh, 1, z)
         
         # rpc_err_sighti &  rpc_err_veci                     
-        for img_id in xrange(1,len(cfg['images'])+1):  
-            # sights                   
+        for img_id in xrange(1,len(cfg['images'])+1): 
+            #selected sights
+            selected_sighti = 'selected_sight%d.vrt' % img_id
+            selected_sighti_crop = 'selected_sight%d_crop.tif' % img_id
+            tile_composer.mosaic_stitch( os.path.join(cfg['out_dir'], selected_sighti),
+                                   tileSizesAndPositions, selected_sighti_crop, fw, fh, 1, z)
+             
+            # err by sight                   
             rpc_err_sighti = 'rpc_err_sight%d.vrt' % img_id
             rpc_err_sighti_crop = 'rpc_err_sight%d_crop.tif' % img_id
             tile_composer.mosaic_stitch( os.path.join(cfg['out_dir'], rpc_err_sighti),
                                    tileSizesAndPositions, rpc_err_sighti_crop, fw, fh, 1, z)
-            # err vectors
+            # err vectors by sight
             rpc_err_veci = 'rpc_err_vec%d.vrt' % img_id
             rpc_err_veci_crop = 'rpc_err_vec%d_crop.tif' % img_id
             tile_composer.mosaic_stitch( os.path.join(cfg['out_dir'], rpc_err_veci),
                                    tileSizesAndPositions, rpc_err_veci_crop, fw, fh, 3, z)
                                    
-            # reprojected err vectors
+            # reprojected err vectors by sight
             rpc_err_vec_rpji = 'rpc_err_vec_rpj%d.vrt' % img_id
             rpc_err_vec_rpji_crop = 'rpc_err_vec_rpj%d_crop.tif' % img_id
             tile_composer.mosaic_stitch( os.path.join(cfg['out_dir'], rpc_err_vec_rpji),

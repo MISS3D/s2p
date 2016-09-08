@@ -206,7 +206,16 @@ def finalize_tile(tile_info, utm_zone=None):
         if not (os.path.isfile(nb_views_crop) and cfg['skip_existing']):
             common.cropImage(nb_views, nb_views_crop, newcol, newrow, w, h)
             
-        for img_id in xrange(1,len(cfg['images'])+1):  
+        for img_id in xrange(1,len(cfg['images'])+1): 
+            #selected sights
+            selected_sighti = os.path.join(tile_dir ,
+                            'selected_sight%d.tif' % img_id)
+            selected_sighti_crop = os.path.join(tile_dir ,
+                                'selected_sight%d_crop.tif' % img_id) 
+            if not (os.path.isfile(selected_sighti_crop) and cfg['skip_existing']):
+                common.cropImage(selected_sighti, selected_sighti_crop,
+                             newcol, newrow, w, h)
+            
             # err by sight                   
             rpc_err_sighti = os.path.join(tile_dir , 
                                 'rpc_err_sight%d.tif' % img_id)
@@ -215,6 +224,7 @@ def finalize_tile(tile_info, utm_zone=None):
             if not (os.path.isfile(rpc_err_sighti_crop) and cfg['skip_existing']):
                 common.cropImage(rpc_err_sighti, rpc_err_sighti_crop,
                              newcol, newrow, w, h) 
+                             
             # err vector by sight (from opt point to a given sight)                                   
             rpc_err_veci = os.path.join(tile_dir , 
                                 'rpc_err_vec%d.tif' % img_id)
