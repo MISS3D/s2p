@@ -327,13 +327,14 @@ def rectify(out_dir, A_global, img1, rpc1, img2, rpc2, x=None, y=None,
     np.savetxt(disp_min_max, np.array([disp_min, disp_max]), fmt='%3.1f')
 
 
-def disparity(out_dir, img1, rpc1, img2, rpc2, x=None, y=None,
+def disparity(tile_dir, pair_id, img1, rpc1, img2, rpc2, x=None, y=None,
               w=None, h=None, prv1=None):
     """
     Computes a disparity map from a Pair of Pleiades images, without tiling
 
     Args:
-        out_dir: path to the output directory
+        tile_dir: path to the tile to be processed
+        pair_id : ID of the pair of images to be processed
         img1: path to the reference image.
         rpc1: paths to the xml file containing the rpc coefficients of the
             reference image
@@ -352,12 +353,15 @@ def disparity(out_dir, img1, rpc1, img2, rpc2, x=None, y=None,
     Returns:
         nothing
     """
+    
+    out_dir = os.path.join(tile_dir, 'pair_%d' % pair_id)
+    
     # output files
     rect1 = '%s/rectified_ref.tif' % (out_dir)
     rect2 = '%s/rectified_sec.tif' % (out_dir)
     disp = '%s/rectified_disp.tif' % (out_dir)
     mask = '%s/rectified_mask.png' % (out_dir)
-    cwid_msk = '%s/cloud_water_image_domain_mask.png' % (out_dir)
+    cwid_msk = '%s/cloud_water_image_domain_mask.png' % (tile_dir)
     cwid_msk_rect = '%s/rectified_cloud_water_image_domain_mask.png' % (out_dir)
 
     subsampling = '%s/subsampling.txt' % (out_dir)

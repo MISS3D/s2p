@@ -147,11 +147,6 @@ def process_tile_pair(tile_info, pair_id):
 
     print 'processing tile %d %d...' % (col, row)
 
-    # check that the tile is not masked
-    if os.path.isfile(os.path.join(out_dir, 'this_tile_is_masked.txt')):
-        print 'tile %s already masked, skip' % out_dir
-        return
-
     # rectification
     if (cfg['skip_existing'] and
         os.path.isfile(os.path.join(out_dir, 'disp_min_max.txt')) and
@@ -170,7 +165,7 @@ def process_tile_pair(tile_info, pair_id):
         print '\tdisparity estimation on tile %d %d (pair %d) already done, skip' % (col, row, pair_id)
     else:
         print '\testimating disparity on tile %d %d (pair %d)...' % (col, row, pair_id)
-        process.disparity(out_dir, img1, rpc1, img2, rpc2, col, row,
+        process.disparity(tile_dir, pair_id, img1, rpc1, img2, rpc2, col, row,
                           tw, th, None)
 
     # triangulation
@@ -212,8 +207,7 @@ def process_tile(tile_info):
         # finalization
         height_maps = []
         for i in xrange(nb_pairs):
-            if not os.path.isfile(os.path.join(tile_dir, 'pair_%d' % (i+1), 'this_tile_is_masked.txt')):
-                height_maps.append(os.path.join(tile_dir, 'pair_%d' % (i+1), 'height_map.tif'))
+            height_maps.append(os.path.join(tile_dir, 'pair_%d' % (i+1), 'height_map.tif'))
         process.finalize_tile(tile_info, height_maps, cfg['utm_zone'])
 
         # ply extrema
