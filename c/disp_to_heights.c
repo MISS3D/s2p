@@ -210,14 +210,14 @@ int main_disp_to_heights(int c, char *v[])
     // track the vector from an opt. point
     // to a given view
     double ** vec_optpt_to_view;
+    vec_optpt_to_view = (double **) malloc(N_rpc*sizeof( double * ));
+    for(int i=0; i<N_rpc; i++)
+        vec_optpt_to_view[i] = (double *) malloc(6*sizeof( double ));
+    
     tabchar *fout_vec_tab;
     float **img_vec_tab;
     if (full_outputs)
     {
-        vec_optpt_to_view = (double **) malloc(N_rpc*sizeof( double * ));
-        for(int i=0; i<N_rpc; i++)
-            vec_optpt_to_view[i] = (double *) malloc(6*sizeof( double ));
-
         fout_vec_tab = (tabchar *) malloc( N_rpc*sizeof(tabchar) );
         for(int i=0; i<N_rpc; i++)
             sprintf(fout_vec_tab[i],"%s/rpc_err_vec%d.tif",tile_dir,i+1);
@@ -369,17 +369,18 @@ int main_disp_to_heights(int c, char *v[])
             heightMap[posH] = NAN;
             for(int i=0; i<size_of_fout_err_tab; i++)
                 errMap_tab[i][posH] = NAN;
-            if (full_outputs)
-            {
-                for(int i=0; i<N_rpc; i++)
-                  for(int t=0; t<3; t++)
+
+            for(int i=0; i<N_rpc; i++)
+              for(int t=0; t<3; t++)
+                {
+                    vec_optpt_to_view[i][t] = NAN;
+                    vec_optpt_to_view[i][t+3] = NAN;
+                    if (full_outputs)
                     {
-                        vec_optpt_to_view[i][t] = NAN;
-                        vec_optpt_to_view[i][t+3] = NAN;
                         img_vec_tab[i][width*3*y+3*x+t] = NAN;
                         rpj_vec_tab[i][width*3*y+3*x+t] = NAN;
                     }
-            }
+                }
 
             if (N_views>=2) // at least two views are required
             {
@@ -534,7 +535,6 @@ int main_disp_to_heights(int c, char *v[])
         for(int i=0; i<N_rpc; i++)
         {
             free(img_selected_views[i]);
-            free(vec_optpt_to_view[i]);
             free(img_vec_tab[i]);
             free(rpj_vec_tab[i]);
         }
@@ -543,7 +543,7 @@ int main_disp_to_heights(int c, char *v[])
             free(disp2D_tab[i]);
         }
         free(img_selected_views);
-        free(vec_optpt_to_view);
+        
         free(img_vec_tab);
         free(rpj_vec_tab);
         free(fout_selected_views);
@@ -552,6 +552,9 @@ int main_disp_to_heights(int c, char *v[])
         free(fout_disp2D_tab);
         free(disp2D_tab);
     }
+    for(int i=0; i<N_rpc; i++)
+        free(vec_optpt_to_view[i]);
+    free(vec_optpt_to_view);
     return 0;
 }
 
