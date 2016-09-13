@@ -469,7 +469,7 @@ int main_disp_to_heights(int c, char *v[])
                         eval_rpci(pos2, &initial_rpc_list[0], lgt2, lat2, alt2);
                         
                         for(int t=0; t<2; t++)
-                            rpj_vec_tab[i][width*3*y+3*x+t] = pos2[t]-pos1[t];
+                            rpj_vec_tab[index][width*3*y+3*x+t] = pos2[t]-pos1[t];
                             
                         //printf("vec reproj %d = %f %f\n",index,pos2[0]-pos1[0],pos2[1]-pos1[1]);
                             
