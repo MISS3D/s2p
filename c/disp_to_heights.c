@@ -451,7 +451,7 @@ int main_disp_to_heights(int c, char *v[])
                         
                         //* error vectors 
                         for(int t=0; t<3; t++)
-                            img_vec_tab[i][width*3*y+3*x+t] = 
+                            img_vec_tab[index][width*3*y+3*x+t] = 
                                  vec_optpt_to_view[index][t+3]
                                  -vec_optpt_to_view[index][t];
                         
