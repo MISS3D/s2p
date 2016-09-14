@@ -163,15 +163,11 @@ def finalize_tile(tile_info, utm_zone=None):
     ## remove overlapping areas
     height_map = os.path.join(tile_dir , 'height_map.tif')
     height_map_crop = os.path.join(tile_dir , 'height_map_crop.tif')
-    rpc_err_all = os.path.join(tile_dir , 'rpc_err_all.tif')
-    rpc_err_all_crop = os.path.join(tile_dir , 'rpc_err_all_crop.tif')
+    rpc_err_all = os.path.join(tile_dir , 'rpc_err_rms_allsights.tif')
+    rpc_err_all_crop = os.path.join(tile_dir , 'rpc_err_rms_allsights_crop.tif')
     crop_ref = os.path.join(tile_dir , 'roi_ref.tif')
     crop_ref_crop = os.path.join(tile_dir , 'roi_ref_crop.tif')
     
-    if cfg['full_vrt']:
-        nb_views = os.path.join(tile_dir , 'nb_views.tif')
-        nb_views_crop = os.path.join(tile_dir , 'nb_views_crop.tif')
-
     dicoPos = {}
     dicoPos['M'] = [ov / 2, ov / 2, -ov, -ov]
     dicoPos['L'] = [0, ov / 2, -ov / 2, -ov]
@@ -203,42 +199,45 @@ def finalize_tile(tile_info, utm_zone=None):
     
     if cfg['full_vrt']:
         
+        nb_views = os.path.join(tile_dir , 'nb_sights.tif')
+        nb_views_crop = os.path.join(tile_dir , 'nb_sights_crop.tif')
+        
         if not (os.path.isfile(nb_views_crop) and cfg['skip_existing']):
             common.cropImage(nb_views, nb_views_crop, newcol, newrow, w, h)
             
         for img_id in xrange(1,len(cfg['images'])+1): 
             #selected sights
             selected_sighti = os.path.join(tile_dir ,
-                            'selected_sight%d.tif' % img_id)
+                            'selected_sight_%d.tif' % img_id)
             selected_sighti_crop = os.path.join(tile_dir ,
-                                'selected_sight%d_crop.tif' % img_id) 
+                                'selected_sight_%d_crop.tif' % img_id) 
             if not (os.path.isfile(selected_sighti_crop) and cfg['skip_existing']):
                 common.cropImage(selected_sighti, selected_sighti_crop,
                              newcol, newrow, w, h)
             
             # err by sight                   
             rpc_err_sighti = os.path.join(tile_dir , 
-                                'rpc_err_sight%d.tif' % img_id)
+                                'rpc_err_norm_sight_%d.tif' % img_id)
             rpc_err_sighti_crop = os.path.join(tile_dir , 
-                                'rpc_err_sight%d_crop.tif' % img_id)
+                                'rpc_err_norm_sight_%d_crop.tif' % img_id)
             if not (os.path.isfile(rpc_err_sighti_crop) and cfg['skip_existing']):
                 common.cropImage(rpc_err_sighti, rpc_err_sighti_crop,
                              newcol, newrow, w, h) 
                              
             # err vector by sight (from opt point to a given sight)                                   
             rpc_err_veci = os.path.join(tile_dir , 
-                                'rpc_err_vec%d.tif' % img_id)
+                                'rpc_err_vec_sight_%d.tif' % img_id)
             rpc_err_veci_crop = os.path.join(tile_dir , 
-                                'rpc_err_vec%d_crop.tif' % img_id)
+                                'rpc_err_vec_sight_%d_crop.tif' % img_id)
             if not (os.path.isfile(rpc_err_veci_crop) and cfg['skip_existing']):
                 common.cropImage(rpc_err_veci, rpc_err_veci_crop,
                              newcol, newrow, w, h) 
                                        
             # reprojected err vector by sight (from opt point to a given sight)                                   
             rpc_err_vec_rpji = os.path.join(tile_dir , 
-                                'rpc_err_vec_rpj%d.tif' % img_id)
+                                'rpc_err_rpjvec_sight_%d.tif' % img_id)
             rpc_err_vec_rpji_crop = os.path.join(tile_dir , 
-                                'rpc_err_vec_rpj%d_crop.tif' % img_id)
+                                'rpc_err_rpjvec_sight_%d_crop.tif' % img_id)
             if not (os.path.isfile(rpc_err_vec_rpji_crop) and cfg['skip_existing']):
                 common.cropImage(rpc_err_vec_rpji, rpc_err_vec_rpji_crop,
                              newcol, newrow, w, h)           

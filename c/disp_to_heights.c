@@ -141,8 +141,8 @@ int main_disp_to_heights(int c, char *v[])
     
     tabchar *fout_err_tab = (tabchar *) malloc( (size_of_fout_err_tab)*sizeof(tabchar) );
     for(int i=1; i<size_of_fout_err_tab; i++)
-        sprintf(fout_err_tab[i],"%s/rpc_err_sight%d.tif",tile_dir,i);
-    sprintf(fout_err_tab[0],"%s/rpc_err_all.tif",tile_dir);
+        sprintf(fout_err_tab[i],"%s/rpc_err_norm_sight_%d.tif",tile_dir,i);
+    sprintf(fout_err_tab[0],"%s/rpc_err_rms_allsights.tif",tile_dir);
     float **errMap_tab = (float **) malloc((size_of_fout_err_tab)*sizeof(float *));
     for(int i=0; i<size_of_fout_err_tab; i++)
         errMap_tab[i] = (float *) calloc(width*height, sizeof(float));
@@ -185,11 +185,11 @@ int main_disp_to_heights(int c, char *v[])
     // the number of views used for each pixel
     // as well as which views have used for each pixel
     // (ref view always selected)
-    int *nb_views;
+    int *nb_views; // view <=> sight
     char fnb_views[1000];
     if (full_outputs)
     {
-        sprintf(fnb_views,"%s/nb_views.tif",tile_dir);
+        sprintf(fnb_views,"%s/nb_sights.tif",tile_dir);
         nb_views = (int *) calloc(width*height, sizeof(int));
     }
     tabchar * fout_selected_views;
@@ -198,7 +198,7 @@ int main_disp_to_heights(int c, char *v[])
     {
         fout_selected_views = (tabchar *) malloc( N_rpc*sizeof(tabchar) );
         for(int i=0; i<N_rpc; i++)
-            sprintf(fout_selected_views[i],"%s/selected_sight%d.tif",tile_dir,i+1);
+            sprintf(fout_selected_views[i],"%s/selected_sight_%d.tif",tile_dir,i+1);
         
         img_selected_views = (int **) malloc(N_rpc*sizeof( int * ));
         for(int i=0;i<N_rpc;i++)
@@ -220,7 +220,7 @@ int main_disp_to_heights(int c, char *v[])
     {
         fout_vec_tab = (tabchar *) malloc( N_rpc*sizeof(tabchar) );
         for(int i=0; i<N_rpc; i++)
-            sprintf(fout_vec_tab[i],"%s/rpc_err_vec%d.tif",tile_dir,i+1);
+            sprintf(fout_vec_tab[i],"%s/rpc_err_vec_sight_%d.tif",tile_dir,i+1);
             
         img_vec_tab = (float **) malloc(N_rpc*sizeof( float * ));
         for(int i=0;i<N_rpc;i++)
@@ -236,7 +236,7 @@ int main_disp_to_heights(int c, char *v[])
     {
         fout_rpj_tab = (tabchar *) malloc( N_rpc*sizeof(tabchar) );
         for(int i=0; i<N_rpc; i++)
-            sprintf(fout_rpj_tab[i],"%s/rpc_err_vec_rpj%d.tif",tile_dir,i+1);
+            sprintf(fout_rpj_tab[i],"%s/rpc_err_rpjvec_sight_%d.tif",tile_dir,i+1);
             
         rpj_vec_tab = (float **) malloc(N_rpc*sizeof( float * ));
         for(int i=0;i<N_rpc;i++)
