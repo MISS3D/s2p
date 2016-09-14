@@ -138,30 +138,32 @@ def process_tile_pair(tile_info, pair_id):
     img1, rpc1 = images[0]['img'], images[0]['rpc']
     img2, rpc2 = images[pair_id]['img'], images[pair_id]['rpc']
 
-    out_dir = os.path.join(tile_dir, 'pair_%d' % pair_id)
-
-
-
     A_global = os.path.join(cfg['out_dir'],
                             'global_pointing_pair_%d.txt' % pair_id)
+                            
+    # check whether the pair must be processed
+    pair_dir = os.path.join(tile_dir, 'pair_%d' % (pair_id))
+    if os.path.isfile(os.path.join(pair_dir, 'dont_process_this_pair.txt')):
+        print 'Pair %s will not be processed, skip' % pair_dir
+        return
 
     print 'processing tile %d %d...' % (col, row)
 
     # rectification
     if (cfg['skip_existing'] and
-        os.path.isfile(os.path.join(out_dir, 'disp_min_max.txt')) and
-        os.path.isfile(os.path.join(out_dir, 'rectified_ref.tif')) and
-        os.path.isfile(os.path.join(out_dir, 'rectified_sec.tif'))):
+        os.path.isfile(os.path.join(pair_dir, 'disp_min_max.txt')) and
+        os.path.isfile(os.path.join(pair_dir, 'rectified_ref.tif')) and
+        os.path.isfile(os.path.join(pair_dir, 'rectified_sec.tif'))):
         print '\trectification on tile %d %d (pair %d) already done, skip' % (col, row, pair_id)
     else:
         print '\trectifying tile %d %d (pair %d)...' % (col, row, pair_id)
-        process.rectify(out_dir, np.loadtxt(A_global), img1, rpc1,
+        process.rectify(pair_dir, np.loadtxt(A_global), img1, rpc1,
                         img2, rpc2, col, row, tw, th, None)
 
     # disparity estimation
     if (cfg['skip_existing'] and
-        os.path.isfile(os.path.join(out_dir, 'rectified_mask.png')) and
-        os.path.isfile(os.path.join(out_dir, 'rectified_disp.tif'))):
+        os.path.isfile(os.path.join(pair_dir, 'rectified_mask.png')) and
+        os.path.isfile(os.path.join(pair_dir, 'rectified_disp.tif'))):
         print '\tdisparity estimation on tile %d %d (pair %d) already done, skip' % (col, row, pair_id)
     else:
         print '\testimating disparity on tile %d %d (pair %d)...' % (col, row, pair_id)
@@ -170,11 +172,11 @@ def process_tile_pair(tile_info, pair_id):
 
     # triangulation
     if (cfg['skip_existing'] and
-        os.path.isfile(os.path.join(out_dir, 'height_map.tif'))):
+        os.path.isfile(os.path.join(pair_dir, 'height_map.tif'))):
         print '\ttriangulation on tile %d %d (pair %d) already done, skip' % (col, row, pair_id)
     else:
         print '\ttriangulating tile %d %d (pair %d)...' % (col, row, pair_id)
-        process.triangulate(out_dir, img1, rpc1, img2, rpc2, col,
+        process.triangulate(pair_dir, img1, rpc1, img2, rpc2, col,
                             row, tw, th, None, np.loadtxt(A_global))
 
 
