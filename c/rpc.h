@@ -58,13 +58,88 @@ double get_altitude_from_ECEF(double X, double Y, double Z);
 void ECEF_to_lgt_lat_alt(double X, double Y, double Z,
 						 double *lgt, double *lat, double *h);
 
-// define the line passing by point 's' with direction vector 'v'
+
+// 3x3 matrix object 
+struct mat3x3 {
+    double val[3][3];
+};
+
+// struct that defines the required 
+// information to process a pair of tiles 
+typedef struct {
+    
+    int sight_slave;
+    bool process;
+    
+    // RPC
+    struct rpc rpc_master;
+    struct rpc rpc_slave;
+    
+    // homographies
+    struct mat3x3 H_ref;
+    struct mat3x3 H_sec;
+    
+    // pointing corrections
+    struct mat3x3 pointing_correc;
+    
+    // take into account
+    // pointing corrections
+    // H_secB = H_sec * A^(-1)
+    struct mat3x3 H_secB;
+    
+    // inverse slave homographies
+    struct mat3x3 H_invSecB;
+    
+    // disparity maps
+    int nx,ny,nch;
+    float *dispx;
+    float *dispy;
+    
+    // mask
+    float *mask;
+    
+    double q0[3]; // a point inside ref image
+    double q1[3]; // a point inside a given slave image
+    
+} type_pair;
+
+// A simple list of pairs of tiles.
+typedef struct
+{
+    type_pair *data;
+    int tot_size;
+    int real_size;
+} list_of_pairs;
+
+// define sight object
 typedef struct 
 {
-	double s[3]; // a point in space
-	double p[3]; // a point in space
-	double v[3]; // a direction vector
-} SV;
+    // sight ID
+    int ID;
+    
+    // boolean telling whether this sight
+    // is part of a consensus
+    bool consensus;
+    
+    // the sight passes through points "s" ans "p"
+    // (in ECEF coord.)
+    double s[3]; 
+    double p[3]; 
+    // its unit direction vector is "v"
+    double v[3]; 
+    
+    // distance from the optimal point to this sight
+    double err;
+    
+    // indices 0 to 2 : optimal point in  ECEF coord
+    // indices 3 to 5 : closest point in this sight
+    // to optimal point in  ECEF coord.
+    // Finally, err-...[i+3] - err-...[i] gives
+    // the ith component of the smallest vector starting
+    // from the optimal point and ending to a point in this sight
+    double err_vec_ptopt_to_sight[6];
+    
+} type_sight;
 
 // distance between a 3D point P and a line (defined by its
 // normalized direction vector V and passing through a 3D point S) 
@@ -75,12 +150,11 @@ double dist_line_point3D(double *V,double *S,double *P);
 double vec_pt_to_line3D(double *P,double *S,double *P0,double *VEC);
 
 // find closest 3D point from from a set of 3D lines
-void find_point_opt(SV *sv_tab, int N, bool *take,
+void find_point_opt(type_sight *sights_list, int N, bool *take,
 		double *point_opt,double *outerr);
 
 // compute the height of a point given its location inside two images
 // geometric solution
-double rpc_height_geo(struct rpc *rpc_list, 
-		double ** q_list, int *NV, 
-		bool findConsensus, double thres, 
-		double *outerr, double **list_vec, bool *best_consensus);
+double rpc_height_geo(list_of_pairs *list_pairs, 
+		int local_nb_sights, int *final_nb_sights, 
+		bool findConsensus, double thres, type_sight *sights_list);
