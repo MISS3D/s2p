@@ -319,13 +319,15 @@ def rectify(tile_dir, A_global, img1, rpc1, img2, rpc2, x=None, y=None,
     np.savetxt(disp_min_max, np.array([disp_min, disp_max]), fmt='%3.1f')
 
 
-def disparity(tile_dir, img1, rpc1, img2, rpc2, x=None, y=None,
+
+def disparity(tile_dir, pair_id, img1, rpc1, img2, rpc2, x=None, y=None,
               w=None, h=None, prv1=None):
     """
     Computes a disparity map from a Pair of Pleiades images, without tiling
 
     Args:
-        tile_dir: path to the output directory
+        tile_dir: path to the tile to be processed
+        pair_id : ID of the pair of images to be processed
         img1: path to the reference image.
         rpc1: paths to the xml file containing the rpc coefficients of the
             reference image
@@ -341,22 +343,24 @@ def disparity(tile_dir, img1, rpc1, img2, rpc2, x=None, y=None,
             area contained in the full image
         wat_msk (optional): path to a tiff file containing a water mask.
     """
+    
+    out_dir = os.path.join(tile_dir, 'pair_%d' % pair_id)
+    
     # output files
-    rect1 = os.path.join(tile_dir,'rectified_ref.tif')
-    rect2 = os.path.join(tile_dir,'rectified_sec.tif')
-    disp = os.path.join(tile_dir,'rectified_disp.tif')
-    mask = os.path.join(tile_dir,'rectified_mask.png')
+    rect1 = os.path.join(out_dir,'rectified_ref.tif')
+    rect2 = os.path.join(out_dir,'rectified_sec.tif')
+    disp = os.path.join(out_dir,'rectified_disp.tif')
+    mask = os.path.join(out_dir,'rectified_mask.png')
     cwid_msk = os.path.join(tile_dir,'cloud_water_image_domain_mask.png')
-    cwid_msk_rect = os.path.join(tile_dir,'rectified_cloud_water_image_domain_mask.png')
-    subsampling = os.path.join(tile_dir,'subsampling.txt')
-    pointing = os.path.join(tile_dir,'pointing.txt')
-    center = os.path.join(tile_dir,'center_keypts_sec.txt')
-    sift_matches = os.path.join(tile_dir,'sift_matches.txt')
-    sift_matches_plot = os.path.join(tile_dir,'sift_matches_plot.png')
-    H_ref = os.path.join(tile_dir,'H_ref.txt')
-    H_sec = os.path.join(tile_dir,'H_sec.txt')
-    disp_min_max = os.path.join(tile_dir,'disp_min_max.txt')
-    config = os.path.join(tile_dir,'config.json')
+    cwid_msk_rect = os.path.join(out_dir,'rectified_cloud_water_image_domain_mask.png')
+    subsampling = os.path.join(out_dir,'subsampling.txt')
+    pointing = os.path.join(out_dir,'pointing.txt')
+    center = os.path.join(out_dir,'center_keypts_sec.txt')
+    sift_matches = os.path.join(out_dir,'sift_matches.txt')
+    sift_matches_plot = os.path.join(out_dir,'sift_matches_plot.png')
+    H_ref = os.path.join(out_dir,'H_ref.txt')
+    H_sec = os.path.join(out_dir,'H_sec.txt')
+    disp_min_max = os.path.join(out_dir,'disp_min_max.txt')
 
     # disparity (block-matching)
     disp_min, disp_max = np.loadtxt(disp_min_max)
