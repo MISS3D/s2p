@@ -204,7 +204,6 @@ def process_tile(tile_info):
         for pair_id in xrange(1, nb_pairs + 1):
             get_disparity_maps(tile_info, pair_id)
 
-
         # triangulation
         if (cfg['skip_existing'] and
             os.path.isfile(os.path.join(tile_dir, 'height_map.tif'))):
@@ -214,19 +213,7 @@ def process_tile(tile_info):
             process.triangulate(tile_info, None)
 
         # finalization
-<<<<<<< HEAD
-        finalize=True
-        for pair_id in xrange(1, nb_pairs + 1):
-            if os.path.isfile(os.path.join(tile_dir, 'pair_%d' % (pair_id), 'this_tile_is_masked.txt')):
-                finalize = False;
-        if finalize:
-            process.finalize_tile(tile_info, cfg['utm_zone'])
-=======
-        height_maps = []
-        for i in xrange(nb_pairs):
-            height_maps.append(os.path.join(tile_dir, 'pair_%d' % (i+1), 'height_map.tif'))
-        process.finalize_tile(tile_info, height_maps, cfg['utm_zone'])
->>>>>>> fixed-masked-tile-tests
+        process.finalize_tile(tile_info, cfg['utm_zone'])
 
         # ply extrema
         common.run("plyextrema {} {}".format(tile_dir, os.path.join(tile_dir, 'plyextrema.txt')))
