@@ -647,7 +647,7 @@ void build_set_sights(type_sight *sights_list,list_of_pairs *list_pairs)
 			else
 			{
 				rpc_to_use = &list_pairs->data[pid].rpc_slave;
-				ID = list_pairs->data[pid].sight_slave;;
+				ID = list_pairs->data[pid].sight_slave;
 				q[0] = list_pairs->data[pid].q1[0];
 				q[1] = list_pairs->data[pid].q1[1];
 				q[2] = list_pairs->data[pid].q1[2];

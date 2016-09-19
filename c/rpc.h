@@ -68,6 +68,7 @@ struct mat3x3 {
 // information to process a pair of tiles 
 typedef struct {
     
+    int ID;
     int sight_slave;
     bool process;
     

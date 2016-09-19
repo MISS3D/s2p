@@ -85,6 +85,7 @@ int main_disp_to_heights(int c, char *v[])
                 int index = list_pairs.real_size;
                 
                 list_pairs.real_size++;
+                list_pairs.data[index].ID = pid;
                 list_pairs.data[index].sight_slave = pid+1;
                 
                 // read RPC
@@ -201,12 +202,13 @@ int main_disp_to_heights(int c, char *v[])
     float ** disp2D_tab;
     if (full_outputs)
     {
-        fout_disp2D_tab = (tabchar *) malloc(nb_pairs*sizeof(tabchar) );
-        for(int i=0; i<nb_pairs; i++)
-            sprintf(fout_disp2D_tab[i],"%s/pair_%d/disp2D.tif",tile_dir,i+1);
+        fout_disp2D_tab = (tabchar *) malloc(list_pairs.real_size*sizeof(tabchar) );
+        for(int i=0; i<list_pairs.real_size; i++)
+            sprintf(fout_disp2D_tab[i],"%s/pair_%d/disp2D.tif",
+                                tile_dir,list_pairs.data[i].ID);
         
-        disp2D_tab = (float **) malloc(nb_pairs*sizeof( float * ));
-        for(int i=0;i<nb_pairs;i++)
+        disp2D_tab = (float **) malloc(list_pairs.real_size*sizeof( float * ));
+        for(int i=0;i<list_pairs.real_size;i++)
             disp2D_tab[i] = (float *) malloc(3*width*height*sizeof( float ));
     }
     
@@ -431,7 +433,7 @@ int main_disp_to_heights(int c, char *v[])
         }
         
         
-    // save the height map / error map / nb_views
+    // save the height map / error map / full outputs
     iio_save_image_float(fout_heights, heightMap, width, height);
     for(int i=0;i<size_of_fout_err_tab;i++)
         iio_save_image_float(fout_err_tab[i], errMap_tab[i], width, height);
@@ -444,36 +446,28 @@ int main_disp_to_heights(int c, char *v[])
             iio_save_image_float_vec(fout_vec_tab[i], img_vec_tab[i], width, height, 3);
             iio_save_image_float_vec(fout_rpj_tab[i], rpj_vec_tab[i], width, height, 3);
         }
-        for(int i=0;i<nb_pairs;i++)
+        for(int i=0;i<list_pairs.real_size;i++)
             iio_save_image_float_vec(fout_disp2D_tab[i], disp2D_tab[i], width, height, 3);
     }
 
     // clean mem
     free(heightMap);
-    if (full_outputs)
-        free(nb_views);
-    for(int i=0;i<list_pairs.real_size;i++)
-    {
-        free(list_pairs.data[i].dispx);
-        free(list_pairs.data[i].mask);
-        if (list_pairs.data[i].nch == 1)
-            free(list_pairs.data[i].dispy);
-    }
-    free(list_pairs.data);
-    
+
     for(int i=0;i<size_of_fout_err_tab;i++)
         free(errMap_tab[i]);
     free(errMap_tab);
     free(fout_err_tab);
+    
     if (full_outputs)
     {
+        free(nb_views);
         for(int i=0; i<N_rpc; i++)
         {
             free(img_selected_views[i]);
             free(img_vec_tab[i]);
             free(rpj_vec_tab[i]);
         }
-        for(int i=0; i<nb_pairs; i++)
+        for(int i=0; i<list_pairs.real_size; i++)
         {
             free(disp2D_tab[i]);
         }
@@ -487,6 +481,16 @@ int main_disp_to_heights(int c, char *v[])
         free(fout_disp2D_tab);
         free(disp2D_tab);
     }
+    
+    for(int i=0;i<list_pairs.real_size;i++)
+    {
+        free(list_pairs.data[i].dispx);
+        free(list_pairs.data[i].mask);
+        if (list_pairs.data[i].nch == 1)
+            free(list_pairs.data[i].dispy);
+    }
+    free(list_pairs.data);
+    
     return 0;
 }
 
