@@ -244,13 +244,13 @@ def finalize_tile(tile_info, utm_zone=None):
                              
         for pair_id in xrange(1,nb_pairs+1):
             # 2D disparities (if originaly computed in epipolar geometry)
-            disp2Di = os.path.join(tile_dir ,
-                            'pair_%d/disp2D.tif' % pair_id)
-            disp2Di_crop = os.path.join(tile_dir ,
-                            'pair_%d/disp2D_crop.tif' % pair_id)
-            if not (os.path.isfile(disp2Di_crop) and cfg['skip_existing']):
-                common.cropImage(disp2Di, disp2Di_crop,
-                             newcol, newrow, w, h)
+            pair_dir = os.path.join(tile_dir,'pair_%d' % pair_id)
+            if not os.path.isfile(os.path.join(pair_dir, 'dont_process_this_pair.txt')):
+                disp2Di = os.path.join(pair_dir, 'disp2D.tif')
+                disp2Di_crop = os.path.join(pair_dir,"disp2D_crop.tif")
+                if not (os.path.isfile(disp2Di_crop) and cfg['skip_existing']):
+                    common.cropImage(disp2Di, disp2Di_crop,
+                                 newcol, newrow, w, h)
         
     
     # ref                     
