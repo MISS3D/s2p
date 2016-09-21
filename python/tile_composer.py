@@ -93,7 +93,7 @@ def mosaic_gdal2(fout, tiles_full_info, filename, w,h,z=1):
         
         col,row,tw,th=tiles_full_info[tile_dir]
 
-        vrt_row.setdefault(row,{'vrt_body' : "",'vrt_dir' : tile_dir.split('/')[0]})
+        vrt_row.setdefault(row,{'vrt_body' : "",'vrt_dir' : tile_dir.split('/')[0], 'th' : th})
         height_map = os.path.join(tile_dir,filename)
         s = height_map.split("/")
         height_map = os.path.join(*s[1:])
@@ -115,6 +115,7 @@ def mosaic_gdal2(fout, tiles_full_info, filename, w,h,z=1):
     
     
     for row,vrt_data in vrt_row.iteritems():
+        th = vrt_data['th']
         # First, write row vrt file
         col_vrt_filename = os.path.join(cfg['out_dir'],vrt_data['vrt_dir'],os.path.basename(vrtfilename))
         files_to_remove.append(col_vrt_filename)
