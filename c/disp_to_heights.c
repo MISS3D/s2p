@@ -103,7 +103,7 @@ int main_disp_to_heights(int c, char *v[])
                 FILE *test2 = fopen(tmp_path,"r");
                 if ( test2 == NULL)
                     sprintf(tmp_path,"%s/global_pointing_pair_%d.txt",global_out_dir,pid);
-                fclose(test2);
+                else fclose(test2);
                 read_matrix(list_pairs.data[index].pointing_correc.val, tmp_path); 
                 
                 // read disparity maps by pair
