@@ -4,6 +4,7 @@
 # Copyright (C) 2015, Julien Michel <julien.michel@cnes.fr>
 
 import os
+import shutil
 import common
 from config import cfg
 
@@ -135,3 +136,85 @@ def compute_disparity_map(im1, im2, out_disp, out_mask, algo, disp_min, disp_max
         out_mask = os.path.join(work_dir, 'rectified_mask.png')
         common.run('plambda %s "x x%%q10 < 0 255 if" -o %s' % (micmac_cost,
                                                                out_mask))
+
+    if (algo == 'asp'):
+        # get disp_min/disp_max
+        if hasattr(disp_min,'__len__') and hasattr(disp_min,'__len__'): # epipolar == False
+            hmin, vmin = disp_min
+            hmax, vmax = disp_max
+        else:
+            hmin, hmax = int(disp_min), int(disp_max)  # epipolar == True
+            vmin, vmax = 0, 1
+
+        corr_search = "--corr-search %d %d %d %d" %(min(hmin,hmax),min(vmin,vmax),max(hmin,hmax),max(vmin,vmax))
+
+        # temporary files
+        work_dir = os.path.dirname(os.path.abspath(im1))
+        tmp_asp = os.path.join(work_dir,'asp')
+        output_file_prefix = os.path.join(tmp_asp,"tile")
+
+        # create tmp directory for asp
+        if not os.path.exists(tmp_asp):
+            os.makedirs(tmp_asp)
+
+        # left and right images (and subsampled versions)
+        left_im = output_file_prefix+"-L.tif"
+        right_im = output_file_prefix+"-R.tif"
+        left_im_sub = output_file_prefix+"-L_sub.tif"
+        right_im_sub = output_file_prefix+"-R_sub.tif"
+
+        # masks of left and right images (and subsampled versions)
+        left_mask = output_file_prefix+"-lMask.tif"
+        right_mask = output_file_prefix+"-rMask.tif"
+        left_mask_sub = output_file_prefix+"-lMask_sub.tif"
+        right_mask_sub = output_file_prefix+"-rMask_sub.tif"
+
+        # filtered version
+        filtered = output_file_prefix+"-F.tif"
+
+        # output before formatting
+        out_disp_vrt= output_file_prefix+".vrt"
+        out_disp_b1 = output_file_prefix+"_b1.tif"
+        out_disp_b2 = output_file_prefix+"_b2.tif"
+
+        # prepare asp block matching
+        common.run('cp %s %s' % (im1, left_im))
+        common.run('cp %s %s' % (im2, right_im))
+
+        # create subsampling tiles
+        common.image_safe_zoom_fft(im1, 1.6, left_im_sub)
+        common.image_safe_zoom_fft(im2, 1.6, right_im_sub)
+
+        # create mask and subsampling mask
+        for mask, im in zip([left_mask, right_mask, left_mask_sub, right_mask_sub],
+                            [left_im, right_im, left_im_sub, right_im_sub]):
+            (nc, nr) = common.image_size_gdal(im)
+            common.run('plambda zero:%dx%d "x 255 +" -o %s' % (nc, nr, mask))
+
+        # run asp
+        io = " ".join([im1,im2,"-t isis",output_file_prefix])
+        exec_lambda = lambda exe,args: " ".join([exe,io,args])
+        exec_list = map(exec_lambda,
+                        ["stereo_corr",
+                         "stereo_rfne",
+                         "stereo_fltr"],
+                        ["--cost-mode=2 "+corr_search,
+                         "--subpixel-kernel 11 11 --subpixel-pyramid-levels 5",""])
+
+        for cmd in exec_list:
+            common.run(cmd)
+
+        # get disparities (row, col)
+        common.run('gdal_translate -b 1 %s %s' % (filtered,out_disp_b1))
+        common.run('gdal_translate -b 2 %s %s' % (filtered,out_disp_b2))
+
+        common.run('gdalbuildvrt -separate %s %s %s' %(out_disp_vrt, out_disp_b1,out_disp_b2))
+        common.run('gdal_translate -of GTiff %s %s' %(out_disp_vrt, out_disp))
+
+        # out_mask
+        goodPixelMap = output_file_prefix+'-GoodPixelMap.tif'
+        common.run('plambda %s "x[1] 0 = 0 255 if" -o %s' % (goodPixelMap,out_mask))
+
+        # delete temporary directory
+        if os.path.exists(tmp_asp):
+            shutil.rmtree(tmp_asp, ignore_errors=True)

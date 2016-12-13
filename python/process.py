@@ -370,15 +370,22 @@ def disparity(out_dir, img1, rpc1, img2, rpc2, x=None, y=None,
     disp_min_max = '%s/disp_min_max.txt' % out_dir
     config = '%s/config.json' % out_dir
 
+    # verifing non-epipolar_rectification is possible
+    algo = cfg['matching_algorithm']
+    if algo not in ['asp']:
+        cfg['epipolar_rectification'] = True
+
     # disparity (block-matching)
     disp_min, disp_max = np.loadtxt(disp_min_max)
 
-    if cfg['disp_min'] is not None:
-        disp_min = cfg['disp_min']
-    if cfg['disp_max'] is not None:
-        disp_max = cfg['disp_max']
+    if cfg['epipolar_rectification']:
+        if cfg['disp_min'] is not None:
+            disp_min = cfg['disp_min']
+        if cfg['disp_max'] is not None:
+            disp_max = cfg['disp_max']
+
     block_matching.compute_disparity_map(rect1, rect2, disp, mask,
-                                         cfg['matching_algorithm'], disp_min,
+                                         algo, disp_min,
                                          disp_max)
 
     # intersect mask with the cloud_water_image_domain mask (recomputed here to
