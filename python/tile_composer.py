@@ -81,35 +81,72 @@ def mosaic_gdal2(fout, tiles_full_info, filename, w,h,z=1):
     Returns:
         nothing
     """
-    vrtfilename = fout
+    
+    vrt_row = {}
 
-    vrtfile = open(vrtfilename, 'w')
+    tw = 0
+    th = 0
 
-    vrtfile.write("<VRTDataset rasterXSize=\"%i\" rasterYSize=\"%i\">\n" % (w/z,
-                                                                            h/z))
-    vrtfile.write("\t<VRTRasterBand dataType=\"Float32\" band=\"1\">\n")
-    vrtfile.write("\t\t<ColorInterp>Gray</ColorInterp>\n")
-
+    files_to_remove = []
+    
     for tile_dir in tiles_full_info:
         
         col,row,tw,th=tiles_full_info[tile_dir]
-        
-        height_map = os.path.join(tile_dir,filename)
 
-        if os.path.isfile(os.path.join(cfg['out_dir'],height_map)):
-            vrtfile.write("\t\t<SimpleSource>\n")
-            vrtfile.write("\t\t\t<SourceFilename relativeToVRT=\"1\">%s</SourceFilename>\n" % height_map)
-            vrtfile.write("\t\t\t<SourceBand>1</SourceBand>\n")
-            vrtfile.write("\t\t\t<SrcRect xOff=\"%i\" yOff=\"%i\" xSize=\"%i\" ySize=\"%i\"/>\n" % (0, 0, tw/z, th/z))
-            vrtfile.write("\t\t\t<DstRect xOff=\"%i\" yOff=\"%i\" xSize=\"%i\" ySize=\"%i\"/>\n" % (col/z, row/z, tw/z, th/z))
-            vrtfile.write("\t\t</SimpleSource>\n")
+        vrt_row.setdefault(row,{'vrt_body' : "",'vrt_dir' : tile_dir.split('/')[0], 'th' : th})
+        height_map = os.path.join(tile_dir,filename)
+        s = height_map.split("/")
+        height_map = os.path.join(*s[1:])
+
+        if os.path.isfile(os.path.join(cfg['out_dir'],vrt_row[row]['vrt_dir'],height_map)):
+            files_to_remove.append(os.path.join(cfg['out_dir'],vrt_row[row]['vrt_dir'],height_map))
+            vrt_row[row]['vrt_body']+="\t\t<SimpleSource>\n"
+            vrt_row[row]['vrt_body']+="\t\t\t<SourceFilename relativeToVRT=\"1\">%s</SourceFilename>\n" % height_map
+            vrt_row[row]['vrt_body']+="\t\t\t<SourceBand>1</SourceBand>\n"
+            vrt_row[row]['vrt_body']+="\t\t\t<SrcRect xOff=\"%i\" yOff=\"%i\" xSize=\"%i\" ySize=\"%i\"/>\n" % (0, 0, tw/z, th/z)
+            vrt_row[row]['vrt_body']+="\t\t\t<DstRect xOff=\"%i\" yOff=\"%i\" xSize=\"%i\" ySize=\"%i\"/>\n" % (col/z, 0, tw/z, th/z)
+            vrt_row[row]['vrt_body']+="\t\t</SimpleSource>\n"
+
+    vrtfilename = fout
+    vrtfile = open(vrtfilename, 'w')
+    vrtfile.write("<VRTDataset rasterXSize=\"%i\" rasterYSize=\"%i\">\n" % (w/z,h/z))
+    vrtfile.write("\t<VRTRasterBand dataType=\"Float32\" band=\"1\">\n")
+    vrtfile.write("\t\t<ColorInterp>Gray</ColorInterp>\n")
+    
+    
+    for row,vrt_data in vrt_row.iteritems():
+        th = vrt_data['th']
+        # First, write row vrt file
+        col_vrt_filename = os.path.join(cfg['out_dir'],vrt_data['vrt_dir'],os.path.basename(vrtfilename))
+        files_to_remove.append(col_vrt_filename)
+        tmp_vrt_file = open(col_vrt_filename,'w')
+        tmp_vrt_file.write("<VRTDataset rasterXSize=\"%i\" rasterYSize=\"%i\">\n" % (w/z,
+                                                                            th/z))
+        tmp_vrt_file.write("\t<VRTRasterBand dataType=\"Float32\" band=\"1\">\n")
+        tmp_vrt_file.write("\t\t<ColorInterp>Gray</ColorInterp>\n")
+        tmp_vrt_file.write(vrt_data['vrt_body'])
+        tmp_vrt_file.write("\t</VRTRasterBand>\n")
+        tmp_vrt_file.write("</VRTDataset>\n")
+        tmp_vrt_file.close()
+                
+        # Next, write entry in final vrt file
+        vrtfile.write("\t\t<SimpleSource>\n")
+        vrtfile.write("\t\t\t<SourceFilename relativeToVRT=\"1\">%s</SourceFilename>\n" % os.path.join(vrt_data['vrt_dir'],os.path.basename(vrtfilename)))
+        vrtfile.write("\t\t\t<SourceBand>1</SourceBand>\n")
+        vrtfile.write("\t\t\t<SrcRect xOff=\"%i\" yOff=\"%i\" xSize=\"%i\" ySize=\"%i\"/>\n" % (0, 0, w/z, th/z))
+        vrtfile.write("\t\t\t<DstRect xOff=\"%i\" yOff=\"%i\" xSize=\"%i\" ySize=\"%i\"/>\n" % (0, row/z, w/z, th/z))
+        vrtfile.write("\t\t</SimpleSource>\n")
 
     vrtfile.write("\t</VRTRasterBand>\n")
     vrtfile.write("</VRTDataset>\n")
     vrtfile.close()
 
-    #common.run('gdal_translate %s %s' % (vrtfilename, fout))
+    if cfg['vrt_to_tiff']:
+        common.run('gdal_translate %s %s' % (vrtfilename, os.path.splitext(vrtfilename)[0]+".tif"))
 
+        if cfg['clean_intermediate']:
+            for f in files_to_remove:
+                common.remove_if_exists(f)
     return
 
 
