@@ -41,10 +41,10 @@ def color_crop_ref(tile_info, clr=None):
     z = cfg['subsampling_factor']
 
     # paths
-    crop_ref = tile_dir + '/roi_ref_crop.tif'
-    global_minmax = cfg['out_dir'] + '/global_minmax.txt'
-    applied_minmax = tile_dir + '/applied_minmax.txt'
-
+    crop_ref = os.path.join(tile_dir , 'roi_ref_crop.tif')
+    global_minmax = os.path.join(cfg['out_dir'] , 'global_minmax.txt')
+    applied_minmax = os.path.join(tile_dir , 'applied_minmax.txt')
+    
     global_minmax_arr = np.loadtxt(global_minmax)
 
     if cfg['color_ply']:
@@ -64,7 +64,7 @@ def color_crop_ref(tile_info, clr=None):
             print 'Rescaling of tile %s already done, skip' % tile_dir
         else:
 
-            crop_color = tile_dir + '/roi_color_ref.tif'
+            crop_color = os.path.join(tile_dir , 'roi_color_ref.tif')
             if clr is not None:
                 triangulation.colorize(crop_ref, clr, x, y, z, crop_color,
                                        applied_minmax_arr[0],
@@ -103,9 +103,8 @@ def generate_cloud(tile_info, do_offset=False, utm_zone=None):
     x, y, w, h = tile_info['coordinates']
     img1, rpc1 = cfg['images'][0]['img'], cfg['images'][0]['rpc']
 
-    #height_map = tile_dir + '/local_merged_height_map.tif'
-    height_map = tile_dir + '/local_merged_height_map_crop.tif'
-    crop_color = tile_dir + '/roi_color_ref.tif'
+    height_map = os.path.join(tile_dir , 'height_map_crop.tif')
+    crop_color = os.path.join(tile_dir , 'roi_color_ref.tif')
     if not os.path.exists(crop_color):
         crop_color = ''
 
@@ -117,11 +116,10 @@ def generate_cloud(tile_info, do_offset=False, utm_zone=None):
     # col and row have been divided by z inside 'finalize_tile' for
     # convinience; col*z and row*z allow to get the initial values back.
     A = common.matrix_translation(-x * z, -y * z)
-    z = cfg['subsampling_factor']
     f = 1.0 / z
     Z = np.diag([f, f, 1])
     A = np.dot(Z, A)
-    trans = tile_dir + '/trans.txt'
+    trans = os.path.join(tile_dir , 'trans.txt')
     np.savetxt(trans, A, fmt='%9.3f')
 
     # compute coordinates (offsets) of the point we want to use as origin in
@@ -135,7 +133,7 @@ def generate_cloud(tile_info, do_offset=False, utm_zone=None):
         off_x, off_y = 0, 0
 
     # output
-    cloud = tile_dir + '/cloud.ply'
+    cloud = os.path.join(tile_dir , 'cloud.ply')
 
     triangulation.compute_point_cloud(cloud, height_map, rpc1, trans, crop_color,
                                       off_x, off_y, utm_zone=utm_zone)
@@ -143,87 +141,33 @@ def generate_cloud(tile_info, do_offset=False, utm_zone=None):
     common.garbage_cleanup()
 
 
-def merge_height_maps(height_maps, tile_dir, thresh, conservative, k=1, garbage=[]):
-    """
-    Merges a list of height maps recursively, computed for one tile from N image pairs.
-
-    Args :
-         - height_maps : list of height map directories
-         - tile_dir : directory of the tile from which to get a merged height map
-         - thresh : threshold used for the fusion algorithm, in meters.
-         - conservative (optional, default is False): if True, keep only the
-            pixels where the two height map agree (fusion algorithm)
-         - k : used to identify the current call of merge_height_maps (default = 1, first call)
-         - garbage : a list used to remove temp data (default = [], first call)
-
-    """
-
-    # output file
-    local_merged_height_map = tile_dir + '/local_merged_height_map.tif'
-
-    if len(height_maps) == 0:
-        return
-
-    if os.path.isfile(local_merged_height_map) and cfg['skip_existing']:
-        print 'final height map %s already done, skip' % local_merged_height_map
-    else:
-        list_height_maps = []
-        for i in range(len(height_maps) - 1):
-            height_map = tile_dir + '/height_map_' + \
-                str(i) + '_' + str(i + 1) + '_' + str(k) + '.tif'
-            fusion.merge(height_maps[i], height_maps[i + 1], thresh, height_map,
-                         conservative)
-            list_height_maps.append(height_map)
-            garbage.append(height_map)
-
-        if len(list_height_maps) > 1:
-            merge_height_maps(list_height_maps, tile_dir,
-                              thresh, conservative, k + 1, garbage)
-        else:
-            common.run('cp %s %s' %
-                       (list_height_maps[0], local_merged_height_map))
-            for imtemp in garbage:
-                common.run('rm -f %s' % imtemp)
-
-
-def finalize_tile(tile_info, height_maps, utm_zone=None):
+def finalize_tile(tile_info, utm_zone=None):
     """
     Finalize the processing of a tile.
 
-    Merge the height maps from the N pairs, remove overlapping areas, get the
+    remove overlapping areas, get the
     colors from a XS image and use it to color and generate a ply file
     (colorization is not mandatory)
 
     Args:
         tile_info: a dictionary that provides all you need to process a tile
-        height_maps: list of the height maps generated from N pairs
     """
-    # get info
+    ## get info
     tile_dir = tile_info['directory']
-    nb_pairs = tile_info['number_of_pairs']
     x, y, w, h = tile_info['coordinates']
     ov = tile_info['overlap']
     pos = tile_info['position_type']
     img1, rpc1 = cfg['images'][0]['img'], cfg['images'][0]['rpc']
+    nb_pairs = tile_info['number_of_pairs']
 
-    # merge the n height maps
-    local_merged_height_map = os.path.join(tile_dir,
-                                           'local_merged_height_map.tif')
-    if len(height_maps) > 1:
-        merge_height_maps(height_maps, tile_dir, cfg['fusion_thresh'],
-                          cfg['fusion_conservative'], 1, [])
-    elif len(height_maps) == 0:
-        return
-    else:
-        common.run('cp %s %s' % (height_maps[0], local_merged_height_map))
-
-    # remove overlapping areas
-    # By tile
-    local_merged_height_map = tile_dir + '/local_merged_height_map.tif'
-    local_merged_height_map_crop = tile_dir + '/local_merged_height_map_crop.tif'
-    crop_ref = tile_dir + '/roi_ref.tif'
-    crop_ref_crop = tile_dir + '/roi_ref_crop.tif'
-
+    ## remove overlapping areas
+    height_map = os.path.join(tile_dir , 'height_map.tif')
+    height_map_crop = os.path.join(tile_dir , 'height_map_crop.tif')
+    rpc_err_all = os.path.join(tile_dir , 'rpc_err_rms_allsights.tif')
+    rpc_err_all_crop = os.path.join(tile_dir , 'rpc_err_rms_allsights_crop.tif')
+    crop_ref = os.path.join(tile_dir , 'roi_ref.tif')
+    crop_ref_crop = os.path.join(tile_dir , 'roi_ref_crop.tif')
+    
     dicoPos = {}
     dicoPos['M'] = [ov / 2, ov / 2, -ov, -ov]
     dicoPos['L'] = [0, ov / 2, -ov / 2, -ov]
@@ -244,39 +188,90 @@ def finalize_tile(tile_info, height_maps, utm_zone=None):
     h = h / z + diffth
     tile_info['coordinates'] = (x, y, w, h)
     
-    # z=1 beacause local_merged_height_map, crop_ref (and so forth) have
+    # z=1 because height_map, crop_ref (and so forth) have
     # already been zoomed. So don't zoom again to crop these images.
-    if not (os.path.isfile(local_merged_height_map_crop) and cfg['skip_existing']):
-        common.cropImage(local_merged_height_map, local_merged_height_map_crop,
+    if not (os.path.isfile(height_map_crop) and cfg['skip_existing']):
+        common.cropImage(height_map, height_map_crop,
                          newcol, newrow, w, h)
+    if not (os.path.isfile(rpc_err_all_crop) and cfg['skip_existing']):
+        common.cropImage(rpc_err_all, rpc_err_all_crop,
+                         newcol, newrow, w, h)
+    
+    if cfg['full_vrt']:
+        
+        nb_views = os.path.join(tile_dir , 'nb_sights.tif')
+        nb_views_crop = os.path.join(tile_dir , 'nb_sights_crop.tif')
+        
+        if not (os.path.isfile(nb_views_crop) and cfg['skip_existing']):
+            common.cropImage(nb_views, nb_views_crop, newcol, newrow, w, h)
+            
+        for img_id in xrange(1,len(cfg['images'])+1): 
+            #selected sights
+            selected_sighti = os.path.join(tile_dir ,
+                            'selected_sight_%d.tif' % img_id)
+            selected_sighti_crop = os.path.join(tile_dir ,
+                                'selected_sight_%d_crop.tif' % img_id) 
+            if not (os.path.isfile(selected_sighti_crop) and cfg['skip_existing']):
+                common.cropImage(selected_sighti, selected_sighti_crop,
+                             newcol, newrow, w, h)
+            
+            # err by sight                   
+            rpc_err_sighti = os.path.join(tile_dir , 
+                                'rpc_err_norm_sight_%d.tif' % img_id)
+            rpc_err_sighti_crop = os.path.join(tile_dir , 
+                                'rpc_err_norm_sight_%d_crop.tif' % img_id)
+            if not (os.path.isfile(rpc_err_sighti_crop) and cfg['skip_existing']):
+                common.cropImage(rpc_err_sighti, rpc_err_sighti_crop,
+                             newcol, newrow, w, h) 
+                             
+            # err vector by sight (from opt point to a given sight)                                   
+            rpc_err_veci = os.path.join(tile_dir , 
+                                'rpc_err_vec_sight_%d.tif' % img_id)
+            rpc_err_veci_crop = os.path.join(tile_dir , 
+                                'rpc_err_vec_sight_%d_crop.tif' % img_id)
+            if not (os.path.isfile(rpc_err_veci_crop) and cfg['skip_existing']):
+                common.cropImage(rpc_err_veci, rpc_err_veci_crop,
+                             newcol, newrow, w, h) 
+                                       
+            # reprojected err vector by sight (from opt point to a given sight)                                   
+            rpc_err_vec_rpji = os.path.join(tile_dir , 
+                                'rpc_err_rpjvec_sight_%d.tif' % img_id)
+            rpc_err_vec_rpji_crop = os.path.join(tile_dir , 
+                                'rpc_err_rpjvec_sight_%d_crop.tif' % img_id)
+            if not (os.path.isfile(rpc_err_vec_rpji_crop) and cfg['skip_existing']):
+                common.cropImage(rpc_err_vec_rpji, rpc_err_vec_rpji_crop,
+                             newcol, newrow, w, h)           
+                             
+        for pair_id in xrange(1,nb_pairs+1):
+            # 2D disparities (if originaly computed in epipolar geometry)
+            pair_dir = os.path.join(tile_dir,'pair_%d' % pair_id)
+            if not os.path.isfile(os.path.join(pair_dir, 'dont_process_this_pair.txt')):
+                disp2Di = os.path.join(pair_dir, 'disp2D.tif')
+                disp2Di_crop = os.path.join(pair_dir,"disp2D_crop.tif")
+                if not (os.path.isfile(disp2Di_crop) and cfg['skip_existing']):
+                    common.cropImage(disp2Di, disp2Di_crop,
+                                 newcol, newrow, w, h)
+        
+    
+    # ref                     
     if not (os.path.isfile(crop_ref_crop) and cfg['skip_existing']):
         common.cropImage(crop_ref, crop_ref_crop, newcol, newrow, w, h)
 
-    # by pair
-    for i in range(1, nb_pairs + 1):
-        single_height_map = os.path.join(tile_dir, 'pair_%d/height_map.tif' % i)
-        single_height_map_crop = os.path.join(tile_dir, 'pair_%d/height_map_crop.tif' % i)
-        single_rpc_err = os.path.join(tile_dir, 'pair_%d/rpc_err.tif' % i)
-        single_rpc_err_crop = os.path.join(tile_dir, 'pair_%d/rpc_err_crop.tif' % i)
-        if not (os.path.isfile(single_height_map_crop) and cfg['skip_existing']):
-            common.cropImage(single_height_map, single_height_map_crop, newcol,
-                             newrow, w, h)
-        if not (os.path.isfile(single_rpc_err_crop) and cfg['skip_existing']):
-            common.cropImage(single_rpc_err, single_rpc_err_crop, newcol, newrow, w, h)
     # colors
     color_crop_ref(tile_info, cfg['images'][0]['clr'])
-
-    # generate cloud
+    
+    ## Generate cloud
     generate_cloud(tile_info, cfg['offset_ply'], utm_zone)
 
 
-def rectify(out_dir, A_global, img1, rpc1, img2, rpc2, x=None, y=None,
+def rectify(tile_dir, A_global, img1, rpc1, img2, rpc2, x=None, y=None,
             w=None, h=None, prv1=None):
     """
     Computes rectifications, without tiling
 
     Args:
-        out_dir: path to the output directory
+        tile_dir: path to the output directory
+        A_global: global pointing corrections
         img1: path to the reference image.
         rpc1: paths to the xml file containing the rpc coefficients of the
             reference image
@@ -287,33 +282,30 @@ def rectify(out_dir, A_global, img1, rpc1, img2, rpc2, x=None, y=None,
             image. (x, y) is the top-left corner, and (w, h) are the dimensions
             of the rectangle.
         prv1 (optional): path to a preview of the reference image.
-
-    Returns:
-        nothing
     """
     # output files
-    rect1 = '%s/rectified_ref.tif' % (out_dir)
-    rect2 = '%s/rectified_sec.tif' % (out_dir)
-    disp = '%s/rectified_disp.tif' % (out_dir)
-    mask = '%s/rectified_mask.png' % (out_dir)
-    subsampling = '%s/subsampling.txt' % (out_dir)
-    pointing = '%s/pointing.txt' % out_dir
-    center = '%s/center_keypts_sec.txt' % out_dir
-    sift_matches = '%s/sift_matches.txt' % out_dir
-    sift_matches_plot = '%s/sift_matches_plot.png' % out_dir
-    H_ref = '%s/H_ref.txt' % out_dir
-    H_sec = '%s/H_sec.txt' % out_dir
-    disp_min_max = '%s/disp_min_max.txt' % out_dir
-    config = '%s/config.json' % out_dir
+    rect1 = os.path.join(tile_dir,'rectified_ref.tif')
+    rect2 = os.path.join(tile_dir,'rectified_sec.tif')
+    disp = os.path.join(tile_dir,'rectified_disp.tif')
+    mask = os.path.join(tile_dir,'rectified_mask.png')
+    subsampling = os.path.join(tile_dir,'subsampling.txt')
+    pointing = os.path.join(tile_dir,'pointing.txt')
+    center = os.path.join(tile_dir,'center_keypts_sec.txt')
+    sift_matches = os.path.join(tile_dir,'sift_matches.txt')
+    sift_matches_plot = os.path.join(tile_dir,'sift_matches_plot.png')
+    H_ref = os.path.join(tile_dir,'H_ref.txt')
+    H_sec = os.path.join(tile_dir,'H_sec.txt')
+    disp_min_max = os.path.join(tile_dir,'disp_min_max.txt')
+    config = os.path.join(tile_dir,'config.json')
 
     A, m = None, None
 
-    if os.path.isfile('%s/pointing.txt' % out_dir):
-        A = np.loadtxt('%s/pointing.txt' % out_dir)
+    if os.path.isfile(os.path.join(tile_dir,'pointing.txt')):
+        A = np.loadtxt(os.path.join(tile_dir,'pointing.txt'))
     else:
         A = A_global
-    if os.path.isfile('%s/sift_matches.txt' % out_dir):
-        m = np.loadtxt('%s/sift_matches.txt' % out_dir)
+    if os.path.isfile(os.path.join(tile_dir,'sift_matches.txt')):
+        m = np.loadtxt(os.path.join(tile_dir,'sift_matches.txt'))
 
     # rectification
     H1, H2, disp_min, disp_max = rectification.rectify_pair(img1, img2, rpc1,
@@ -327,13 +319,15 @@ def rectify(out_dir, A_global, img1, rpc1, img2, rpc2, x=None, y=None,
     np.savetxt(disp_min_max, np.array([disp_min, disp_max]), fmt='%3.1f')
 
 
-def disparity(out_dir, img1, rpc1, img2, rpc2, x=None, y=None,
+
+def disparity(tile_dir, pair_id, img1, rpc1, img2, rpc2, x=None, y=None,
               w=None, h=None, prv1=None):
     """
     Computes a disparity map from a Pair of Pleiades images, without tiling
 
     Args:
-        out_dir: path to the output directory
+        tile_dir: path to the tile to be processed
+        pair_id : ID of the pair of images to be processed
         img1: path to the reference image.
         rpc1: paths to the xml file containing the rpc coefficients of the
             reference image
@@ -348,27 +342,25 @@ def disparity(out_dir, img1, rpc1, img2, rpc2, x=None, y=None,
         roi_msk (optional): path to a gml file containing a mask defining the
             area contained in the full image
         wat_msk (optional): path to a tiff file containing a water mask.
-
-    Returns:
-        nothing
     """
+    
+    out_dir = os.path.join(tile_dir, 'pair_%d' % pair_id)
+    
     # output files
-    rect1 = '%s/rectified_ref.tif' % (out_dir)
-    rect2 = '%s/rectified_sec.tif' % (out_dir)
-    disp = '%s/rectified_disp.tif' % (out_dir)
-    mask = '%s/rectified_mask.png' % (out_dir)
-    cwid_msk = '%s/cloud_water_image_domain_mask.png' % (out_dir)
-    cwid_msk_rect = '%s/rectified_cloud_water_image_domain_mask.png' % (out_dir)
-
-    subsampling = '%s/subsampling.txt' % (out_dir)
-    pointing = '%s/pointing.txt' % out_dir
-    center = '%s/center_keypts_sec.txt' % out_dir
-    sift_matches = '%s/sift_matches.txt' % out_dir
-    sift_matches_plot = '%s/sift_matches_plot.png' % out_dir
-    H_ref = '%s/H_ref.txt' % out_dir
-    H_sec = '%s/H_sec.txt' % out_dir
-    disp_min_max = '%s/disp_min_max.txt' % out_dir
-    config = '%s/config.json' % out_dir
+    rect1 = os.path.join(out_dir,'rectified_ref.tif')
+    rect2 = os.path.join(out_dir,'rectified_sec.tif')
+    disp = os.path.join(out_dir,'rectified_disp.tif')
+    mask = os.path.join(out_dir,'rectified_mask.png')
+    cwid_msk = os.path.join(tile_dir,'cloud_water_image_domain_mask.png')
+    cwid_msk_rect = os.path.join(out_dir,'rectified_cloud_water_image_domain_mask.png')
+    subsampling = os.path.join(out_dir,'subsampling.txt')
+    pointing = os.path.join(out_dir,'pointing.txt')
+    center = os.path.join(out_dir,'center_keypts_sec.txt')
+    sift_matches = os.path.join(out_dir,'sift_matches.txt')
+    sift_matches_plot = os.path.join(out_dir,'sift_matches_plot.png')
+    H_ref = os.path.join(out_dir,'H_ref.txt')
+    H_sec = os.path.join(out_dir,'H_sec.txt')
+    disp_min_max = os.path.join(out_dir,'disp_min_max.txt')
 
     # disparity (block-matching)
     disp_min, disp_max = np.loadtxt(disp_min_max)
@@ -395,38 +387,27 @@ def disparity(out_dir, img1, rpc1, img2, rpc2, x=None, y=None,
         print "file %s not produced" % mask
 
 
-def triangulate(out_dir, img1, rpc1, img2, rpc2, x=None, y=None,
-                w=None, h=None, prv1=None, A=None):
+def triangulate(tile_info, prv1=None, A=None):
     """
     Computes triangulations, without tiling
 
     Args:
-        out_dir: path to the output directory
-        img1: path to the reference image.
-        rpc1: paths to the xml file containing the rpc coefficients of the
-            reference image
-        img2: path to the secondary image.
-        rpc2: paths to the xml file containing the rpc coefficients of the
-            secondary image
-        x, y, w, h: four integers defining the rectangular ROI in the reference
-            image. (x, y) is the top-left corner, and (w, h) are the dimensions
-            of the rectangle.
+        tile_info : a dictionary that provides all you need to process a tile
         prv1 (optional): path to a preview of the reference image
-        A (optional, default None): pointing correction matrix.
+        #A (optional, default None): pointing correction matrix.
 
-    Returns:
-        nothing
     """
-    # output files
-    disp = '%s/rectified_disp.tif' % (out_dir)
-    mask = '%s/rectified_mask.png' % (out_dir)
-    H_ref = '%s/H_ref.txt' % out_dir
-    H_sec = '%s/H_sec.txt' % out_dir
-    rpc_err = '%s/rpc_err.tif' % out_dir
-    height_map = '%s/height_map.tif' % out_dir
+    # get info
+    col, row, tw, th = tile_info['coordinates']
+    z = cfg['subsampling_factor']
+    global_out_dir = cfg['out_dir']
+       
+    rpc_list=[]
+    images = cfg['images']
+    for i in xrange(len(images)):
+        rpc_list.append(images[i]['rpc'])
 
     # triangulation
-    z = cfg['subsampling_factor']
-    triangulation.compute_dem(height_map, x, y, w, h, z,
-                              rpc1, rpc2, H_ref, H_sec, disp, mask,
-                              rpc_err, A)
+    triangulation.compute_height_map(global_out_dir, 
+                              col, row, tw, th, z,
+                              rpc_list)

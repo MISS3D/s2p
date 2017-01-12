@@ -43,15 +43,20 @@ def minmax_intensities(tiles_full_info):
 
     if not (os.path.isfile(min_max_file) and cfg['skip_existing']):
 
-        minlist = []
-        maxlist = []
+        min_opt = float('Inf')
+        max_opt = -float('Inf')
         for tile_info in tiles_full_info:
-            minmax = np.loadtxt(os.path.join(tile_info['directory'],
-                                            'local_minmax.txt'))
-            minlist.append(minmax[0])
-            maxlist.append(minmax[1])
+            local_minmax = os.path.join(tile_info['directory'],
+                                            'local_minmax.txt')
+            if os.path.isfile(local_minmax):
+                minmax = np.loadtxt(os.path.join(tile_info['directory'],
+                                                'local_minmax.txt'))
+                if minmax[0] < min_opt:
+                    min_opt = minmax[0]
+                if minmax[1] > max_opt:
+                    max_opt = minmax[1]
 
-            global_minmax = [min(minlist), max(maxlist)]
+                global_minmax = [min_opt, max_opt]
 
-            np.savetxt(min_max_file, global_minmax,
+        np.savetxt(min_max_file, global_minmax,
                        fmt='%6.3f')

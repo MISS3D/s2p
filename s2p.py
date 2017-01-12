@@ -119,7 +119,7 @@ def global_values(tiles_full_info):
     globalvalues.minmax_intensities(tiles_full_info)
 
 
-def process_tile_pair(tile_info, pair_id):
+def get_disparity_maps(tile_info, pair_id):
     """
     Process a pair of images on a given tile.
 
@@ -138,59 +138,55 @@ def process_tile_pair(tile_info, pair_id):
     img1, rpc1 = images[0]['img'], images[0]['rpc']
     img2, rpc2 = images[pair_id]['img'], images[pair_id]['rpc']
 
-    out_dir = os.path.join(tile_dir, 'pair_%d' % pair_id)
-
-
-
     A_global = os.path.join(cfg['out_dir'],
                             'global_pointing_pair_%d.txt' % pair_id)
+                            
+    # check whether the pair must be processed
+    pair_dir = os.path.join(tile_dir, 'pair_%d' % (pair_id))
+    if os.path.isfile(os.path.join(pair_dir, 'dont_process_this_pair.txt')):
+        print 'Pair %s will not be processed, skip' % pair_dir
+        return
 
     print 'processing tile %d %d...' % (col, row)
 
-    # check that the tile is not masked
-    if os.path.isfile(os.path.join(out_dir, 'this_tile_is_masked.txt')):
-        print 'tile %s already masked, skip' % out_dir
-        return
-
     # rectification
     if (cfg['skip_existing'] and
-        os.path.isfile(os.path.join(out_dir, 'disp_min_max.txt')) and
-        os.path.isfile(os.path.join(out_dir, 'rectified_ref.tif')) and
-        os.path.isfile(os.path.join(out_dir, 'rectified_sec.tif'))):
+        os.path.isfile(os.path.join(pair_dir, 'disp_min_max.txt')) and
+        os.path.isfile(os.path.join(pair_dir, 'rectified_ref.tif')) and
+        os.path.isfile(os.path.join(pair_dir, 'rectified_sec.tif'))):
         print '\trectification on tile %d %d (pair %d) already done, skip' % (col, row, pair_id)
     else:
         print '\trectifying tile %d %d (pair %d)...' % (col, row, pair_id)
-        process.rectify(out_dir, np.loadtxt(A_global), img1, rpc1,
+        process.rectify(pair_dir, np.loadtxt(A_global), img1, rpc1,
                         img2, rpc2, col, row, tw, th, None)
 
     # disparity estimation
     if (cfg['skip_existing'] and
-        os.path.isfile(os.path.join(out_dir, 'rectified_mask.png')) and
-        os.path.isfile(os.path.join(out_dir, 'rectified_disp.tif'))):
+        os.path.isfile(os.path.join(pair_dir, 'rectified_mask.png')) and
+        os.path.isfile(os.path.join(pair_dir, 'rectified_disp.tif'))):
         print '\tdisparity estimation on tile %d %d (pair %d) already done, skip' % (col, row, pair_id)
     else:
         print '\testimating disparity on tile %d %d (pair %d)...' % (col, row, pair_id)
-        process.disparity(out_dir, img1, rpc1, img2, rpc2, col, row,
+        process.disparity(tile_dir, pair_id, img1, rpc1, img2, rpc2, col, row,
                           tw, th, None)
-
-    # triangulation
-    if (cfg['skip_existing'] and
-        os.path.isfile(os.path.join(out_dir, 'height_map.tif'))):
-        print '\ttriangulation on tile %d %d (pair %d) already done, skip' % (col, row, pair_id)
-    else:
-        print '\ttriangulating tile %d %d (pair %d)...' % (col, row, pair_id)
-        process.triangulate(out_dir, img1, rpc1, img2, rpc2, col,
-                            row, tw, th, None, np.loadtxt(A_global))
 
 
 def process_tile(tile_info):
     """
-    Process a tile by merging the height maps computed for each image pair.
+    Process a tile in order to obtain a height map.
 
     Args:
         tile_info: a dictionary that provides all you need to process a tile
     """
+    
+    # read all the information
     tile_dir = tile_info['directory']
+    col, row, tw, th = tile_info['coordinates']
+    nb_pairs = tile_info['number_of_pairs']
+    
+    
+    #A_global = os.path.join(cfg['out_dir'],
+    #                        'global_pointing_pair_%d.txt' % pair_id)
 
     # redirect stdout and stderr to log file
     if not cfg['debug']:
@@ -204,17 +200,20 @@ def process_tile(tile_info):
             print 'tile %s already masked, skip' % tile_dir
             return
 
-        # process each pair to get a height map
-        nb_pairs = tile_info['number_of_pairs']
-        for pair_id in range(1, nb_pairs + 1):
-            process_tile_pair(tile_info, pair_id)
+        # process each pair to get the disparity maps
+        for pair_id in xrange(1, nb_pairs + 1):
+            get_disparity_maps(tile_info, pair_id)
+
+        # triangulation
+        if (cfg['skip_existing'] and
+            os.path.isfile(os.path.join(tile_dir, 'height_map.tif'))):
+            print '\ttriangulation on tile %d %d already done, skip' % (col, row)
+        else:
+            print '\ttriangulating tile %d %d...' % (col, row)
+            process.triangulate(tile_info, None)
 
         # finalization
-        height_maps = []
-        for i in xrange(nb_pairs):
-            if not os.path.isfile(os.path.join(tile_dir, 'pair_%d' % (i+1), 'this_tile_is_masked.txt')):
-                height_maps.append(os.path.join(tile_dir, 'pair_%d' % (i+1), 'height_map.tif'))
-        process.finalize_tile(tile_info, height_maps, cfg['utm_zone'])
+        process.finalize_tile(tile_info, cfg['utm_zone'])
 
         # ply extrema
         common.run("plyextrema {} {}".format(tile_dir, os.path.join(tile_dir, 'plyextrema.txt')))

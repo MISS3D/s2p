@@ -103,7 +103,7 @@ SRC = $(SRCIIO) $(SRCFFT) $(SRCKKK)
 SRCIIO = downsa backflow synflow imprintf iion qauto getminmax rescaleintensities qeasy crop morsi\
 	morphoop cldmask disp_to_h_projective colormesh_projective tiffu
 SRCFFT = gblur blur fftconvolve zoom_zeropadding zoom_2d
-SRCKKK = watermask disp_to_h colormesh disp2ply bin2asc siftu ransac srtm4\
+SRCKKK = watermask disp_to_heights colormesh bin2asc siftu ransac srtm4\
 	srtm4_which_tile plyflatten plyextrema plytodsm
 
 imscript: $(BINDIR) $(PROGRAMS)
@@ -147,19 +147,14 @@ $(BINDIR)/watermask: $(SRCDIR)/iio.o $(SRCDIR)/Geoid.o\
 	$(SRCDIR)/xmalloc.c $(SRCDIR)/pickopt.c $(SRCDIR)/rpc.c $(SRCDIR)/srtm4.c\
 	$(SRCDIR)/iio.h $(SRCDIR)/parsenumbers.c
 	$(C99) $(CFLAGS) $(SRCDIR)/iio.o $(SRCDIR)/Geoid.o $(SRCDIR)/geoid_height_wrapper.o $(SRCDIR)/watermask.c $(IIOLIBS) $(LDLIBS) -o $@
-
-$(BINDIR)/disp_to_h: $(SRCDIR)/iio.o $(SRCDIR)/rpc.o c/disp_to_h.c c/vvector.h c/iio.h c/rpc.h c/read_matrix.c
-	$(C99) $(CFLAGS) $(SRCDIR)/iio.o $(SRCDIR)/rpc.o c/disp_to_h.c $(IIOLIBS) -o $@
+	
+$(BINDIR)/disp_to_heights: $(SRCDIR)/iio.o $(SRCDIR)/rpc.o c/disp_to_heights.c c/vvector.h c/iio.h c/rpc.h c/read_matrix.c
+	$(C99) $(CFLAGS) $(SRCDIR)/iio.o $(SRCDIR)/rpc.o c/disp_to_heights.c $(IIOLIBS) -o $@
 
 $(BINDIR)/colormesh: $(SRCDIR)/iio.o $(SRCDIR)/rpc.o $(SRCDIR)/geographiclib_wrapper.o $(SRCDIR)/DMS.o $(SRCDIR)/GeoCoords.o $(SRCDIR)/MGRS.o\
 	$(SRCDIR)/PolarStereographic.o $(SRCDIR)/TransverseMercator.o $(SRCDIR)/UTMUPS.o c/colormesh.c c/iio.h\
 	c/fail.c c/rpc.h c/read_matrix.c c/smapa.h c/timing.c c/timing.h
 	$(C99) $(CFLAGS) $(SRCDIR)/iio.o $(SRCDIR)/rpc.o $(SRCDIR)/geographiclib_wrapper.o $(SRCDIR)/DMS.o $(SRCDIR)/GeoCoords.o $(SRCDIR)/MGRS.o $(SRCDIR)/PolarStereographic.o $(SRCDIR)/TransverseMercator.o $(SRCDIR)/UTMUPS.o c/colormesh.c c/timing.c $(IIOLIBS) $(LDLIBS) -o $@
-
-$(BINDIR)/disp2ply: $(SRCDIR)/iio.o $(SRCDIR)/rpc.o $(SRCDIR)/geographiclib_wrapper.o $(SRCDIR)/DMS.o $(SRCDIR)/GeoCoords.o $(SRCDIR)/MGRS.o\
-	$(SRCDIR)/PolarStereographic.o $(SRCDIR)/TransverseMercator.o $(SRCDIR)/UTMUPS.o c/disp2ply.c c/iio.h\
-	c/fail.c c/rpc.h c/read_matrix.c c/smapa.h
-	$(C99) $(CFLAGS) $(SRCDIR)/iio.o $(SRCDIR)/rpc.o $(SRCDIR)/geographiclib_wrapper.o $(SRCDIR)/DMS.o $(SRCDIR)/GeoCoords.o $(SRCDIR)/MGRS.o $(SRCDIR)/PolarStereographic.o $(SRCDIR)/TransverseMercator.o $(SRCDIR)/UTMUPS.o c/disp2ply.c $(IIOLIBS) $(LDLIBS) -o $@
 
 $(BINDIR)/plyflatten: $(SRCDIR)/plyflatten.c $(SRCDIR)/iio.o
 	$(C99) $(CFLAGS) $^ -o $@ $(IIOLIBS) $(GEOLIBS)

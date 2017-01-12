@@ -74,25 +74,54 @@ def write_vrt_files(tiles_full_info):
         tileSizesAndPositions[tile_reldir] = dicoPos[pos]
 
     z = cfg['subsampling_factor']
-    tile_composer.mosaic_gdal2(cfg['out_dir'] + '/heightMap_N_pairs.vrt',
-                               tileSizesAndPositions, 'local_merged_height_map_crop.tif', fw, fh, z)
-
-    # VRT file : height map (for each single pair)
-    # VRT file : rpc_err (for each single pair)
-    for i in range(0, nb_pairs):
-
-        pair_id = i + 1
-
-        pairSizesAndPositions = {}
-        for tile_reldir in tileSizesAndPositions:
-            pair_reldir = tile_reldir + '/pair_%d' % (pair_id)
-            pairSizesAndPositions[
-                pair_reldir] = tileSizesAndPositions[tile_reldir]
-
-        tile_composer.mosaic_gdal2(cfg['out_dir'] + '/heightMap_pair_%d.vrt' % (
-            pair_id), pairSizesAndPositions, 'height_map_crop.tif', fw, fh, z)
-        tile_composer.mosaic_gdal2(cfg['out_dir'] + '/rpc_err_pair_%d.vrt' % (
-            pair_id), pairSizesAndPositions, 'rpc_err_crop.tif', fw, fh, z)
+    
+    # VRT file : height map 
+    tile_composer.mosaic_stitch( os.path.join(cfg['out_dir'], 'height_map.vrt'),
+                               tileSizesAndPositions, 'height_map_crop.tif', fw, fh, 1, z)
+                               
+    # VRT file : rpc_err_rms_allsights
+    tile_composer.mosaic_stitch( os.path.join(cfg['out_dir'], 'rpc_err_rms_allsights.vrt'),
+                               tileSizesAndPositions, 'rpc_err_rms_allsights_crop.tif', fw, fh, 1, z)
+    
+    if cfg['full_vrt']:
+        # VRT file : nb_sights
+        tile_composer.mosaic_stitch( os.path.join(cfg['out_dir'], 'nb_sights.vrt'),
+                               tileSizesAndPositions, 'nb_sights_crop.tif', fw, fh, 1, z)
+        
+        # selected_sight_i
+        # rpc_err_norm_sight_i 
+        # rpc_err_vec_sight_i   
+        # rpc_err_rpjvec_sight_i                
+        for img_id in xrange(1,len(cfg['images'])+1): 
+            #selected sights
+            selected_sighti = 'selected_sight_%d.vrt' % img_id
+            selected_sighti_crop = 'selected_sight_%d_crop.tif' % img_id
+            tile_composer.mosaic_stitch( os.path.join(cfg['out_dir'], selected_sighti),
+                                   tileSizesAndPositions, selected_sighti_crop, fw, fh, 1, z)
+             
+            # err by sight                   
+            rpc_err_sighti = 'rpc_err_norm_sight_%d.vrt' % img_id
+            rpc_err_sighti_crop = 'rpc_err_norm_sight_%d_crop.tif' % img_id
+            tile_composer.mosaic_stitch( os.path.join(cfg['out_dir'], rpc_err_sighti),
+                                   tileSizesAndPositions, rpc_err_sighti_crop, fw, fh, 1, z)
+            # err vectors by sight
+            rpc_err_veci = 'rpc_err_vec_sight_%d.vrt' % img_id
+            rpc_err_veci_crop = 'rpc_err_vec_sight_%d_crop.tif' % img_id
+            tile_composer.mosaic_stitch( os.path.join(cfg['out_dir'], rpc_err_veci),
+                                   tileSizesAndPositions, rpc_err_veci_crop, fw, fh, 3, z)
+                                   
+            # reprojected err vectors by sight
+            rpc_err_vec_rpji = 'rpc_err_rpjvec_sight_%d.vrt' % img_id
+            rpc_err_vec_rpji_crop = 'rpc_err_rpjvec_sight_%d_crop.tif' % img_id
+            tile_composer.mosaic_stitch( os.path.join(cfg['out_dir'], rpc_err_vec_rpji),
+                                   tileSizesAndPositions, rpc_err_vec_rpji_crop, fw, fh, 3, z)
+                                   
+        # 2D disparities (if originaly computed in epipolar geometry)                     
+        for pair_id in xrange(1,nb_pairs+1):                     
+            disp2Di = 'disp2D_pair%d.vrt' % pair_id
+            disp2Di_crop = 'pair_%d/disp2D_crop.tif' % pair_id
+            tile_composer.mosaic_stitch( os.path.join(cfg['out_dir'], disp2Di),
+                                   tileSizesAndPositions, disp2Di_crop, fw, fh, 3, z)
 
 
 def write_dsm():
