@@ -144,27 +144,27 @@ class RPCModel:
         a = tag.split('_')
         if len(a) == 2:
             if a[1] == "OFF:":
-                if   a[0] == "LINE":   self.linOff = float(val)
-                elif a[0] == "SAMP":   self.colOff = float(val)
-                elif a[0] == "LAT":    self.latOff = float(val)
-                elif a[0] == "LONG":   self.lonOff = float(val)
-                elif a[0] == "HEIGHT": self.altOff = float(val)
+                if   a[0] == "LINE":   self.linOff = np.float64(val)
+                elif a[0] == "SAMP":   self.colOff = np.float64(val)
+                elif a[0] == "LAT":    self.latOff = np.float64(val)
+                elif a[0] == "LONG":   self.lonOff = np.float64(val)
+                elif a[0] == "HEIGHT": self.altOff = np.float64(val)
             elif a[1] == "SCALE:":
-                if   a[0] == "LINE":   self.linScale = float(val)
-                elif a[0] == "SAMP":   self.colScale = float(val)
-                elif a[0] == "LAT":    self.latScale = float(val)
-                elif a[0] == "LONG":   self.lonScale = float(val)
-                elif a[0] == "HEIGHT": self.altScale = float(val)
+                if   a[0] == "LINE":   self.linScale = np.float64(val)
+                elif a[0] == "SAMP":   self.colScale = np.float64(val)
+                elif a[0] == "LAT":    self.latScale = np.float64(val)
+                elif a[0] == "LONG":   self.lonScale = np.float64(val)
+                elif a[0] == "HEIGHT": self.altScale = np.float64(val)
 
         elif len(a) == 4 and a[2] == "COEFF":
             # remove ':', convert to int and decrease the coeff index
             a[3] = int(a[3][:-1]) - 1
             if a[0] == "LINE":
-                if   a[1] == "NUM": self.inverseLinNum[a[3]] = float(val)
-                elif a[1] == "DEN": self.inverseLinDen[a[3]] = float(val)
+                if   a[1] == "NUM": self.inverseLinNum[a[3]] = np.float64(val)
+                elif a[1] == "DEN": self.inverseLinDen[a[3]] = np.float64(val)
             elif a[0] == "SAMP":
-                if   a[1] == "NUM": self.inverseColNum[a[3]] = float(val)
-                elif a[1] == "DEN": self.inverseColDen[a[3]] = float(val)
+                if   a[1] == "NUM": self.inverseColNum[a[3]] = np.float64(val)
+                elif a[1] == "DEN": self.inverseColDen[a[3]] = np.float64(val)
 
     def read_rpc_xml(self, tree):
         # determine wether it's a pleiades, spot-6 or worldview image
@@ -184,7 +184,7 @@ class RPCModel:
     def parse_coeff(self, element, prefix, indices):
         tab = []
         for x in indices:
-            tab.append(float(element.find("%s_%s" % (prefix, str(x))).text))
+            tab.append(np.float64(element.find("%s_%s" % (prefix, str(x))).text))
         return tab
 
     def read_rpc_pleiades(self, tree):
@@ -207,57 +207,57 @@ class RPCModel:
         # validity domains
         v = tree.find('Rational_Function_Model/Global_RFM/RFM_Validity')
         vd = v.find('Direct_Model_Validity_Domain')
-        self.firstRow = float(vd.find('FIRST_ROW').text)
-        self.firstCol = float(vd.find('FIRST_COL').text)
-        self.lastRow  = float(vd.find('LAST_ROW').text)
-        self.lastCol  = float(vd.find('LAST_COL').text)
+        self.firstRow = np.float64(vd.find('FIRST_ROW').text)
+        self.firstCol = np.float64(vd.find('FIRST_COL').text)
+        self.lastRow  = np.float64(vd.find('LAST_ROW').text)
+        self.lastCol  = np.float64(vd.find('LAST_COL').text)
 
         vi = v.find('Inverse_Model_Validity_Domain')
-        self.firstLon = float(vi.find('FIRST_LON').text)
-        self.firstLat = float(vi.find('FIRST_LAT').text)
-        self.lastLon  = float(vi.find('LAST_LON').text)
-        self.lastLat  = float(vi.find('LAST_LAT').text)
+        self.firstLon = np.float64(vi.find('FIRST_LON').text)
+        self.firstLat = np.float64(vi.find('FIRST_LAT').text)
+        self.lastLon  = np.float64(vi.find('LAST_LON').text)
+        self.lastLat  = np.float64(vi.find('LAST_LAT').text)
 
         # scale and offset
         # the -1 in line and column offsets is due to Pleiades RPC convention
         # that states that the top-left pixel of an image has coordinates
         # (1, 1)
-        self.linOff   = float(v.find('LINE_OFF').text) - 1
-        self.colOff   = float(v.find('SAMP_OFF').text) - 1
-        self.latOff   = float(v.find('LAT_OFF').text)
-        self.lonOff   = float(v.find('LONG_OFF').text)
-        self.altOff   = float(v.find('HEIGHT_OFF').text)
-        self.linScale = float(v.find('LINE_SCALE').text)
-        self.colScale = float(v.find('SAMP_SCALE').text)
-        self.latScale = float(v.find('LAT_SCALE').text)
-        self.lonScale = float(v.find('LONG_SCALE').text)
-        self.altScale = float(v.find('HEIGHT_SCALE').text)
+        self.linOff   = np.float64(v.find('LINE_OFF').text) - 1
+        self.colOff   = np.float64(v.find('SAMP_OFF').text) - 1
+        self.latOff   = np.float64(v.find('LAT_OFF').text)
+        self.lonOff   = np.float64(v.find('LONG_OFF').text)
+        self.altOff   = np.float64(v.find('HEIGHT_OFF').text)
+        self.linScale = np.float64(v.find('LINE_SCALE').text)
+        self.colScale = np.float64(v.find('SAMP_SCALE').text)
+        self.latScale = np.float64(v.find('LAT_SCALE').text)
+        self.lonScale = np.float64(v.find('LONG_SCALE').text)
+        self.altScale = np.float64(v.find('HEIGHT_SCALE').text)
 
     def read_rpc_worldview(self, tree):
         # inverse model
         im = tree.find('RPB/IMAGE')
         l = im.find('LINENUMCOEFList/LINENUMCOEF')
-        self.inverseLinNum = [float(c) for c in l.text.split()]
+        self.inverseLinNum = [np.float64(c) for c in l.text.split()]
         l = im.find('LINEDENCOEFList/LINEDENCOEF')
-        self.inverseLinDen = [float(c) for c in l.text.split()]
+        self.inverseLinDen = [np.float64(c) for c in l.text.split()]
         l = im.find('SAMPNUMCOEFList/SAMPNUMCOEF')
-        self.inverseColNum = [float(c) for c in l.text.split()]
+        self.inverseColNum = [np.float64(c) for c in l.text.split()]
         l = im.find('SAMPDENCOEFList/SAMPDENCOEF')
-        self.inverseColDen = [float(c) for c in l.text.split()]
-        self.inverseBias = float(im.find('ERRBIAS').text)
+        self.inverseColDen = [np.float64(c) for c in l.text.split()]
+        self.inverseBias = np.float64(im.find('ERRBIAS').text)
 
         # scale and offset
-        self.linOff   = float(im.find('LINEOFFSET').text)
-        self.colOff   = float(im.find('SAMPOFFSET').text)
-        self.latOff   = float(im.find('LATOFFSET').text)
-        self.lonOff   = float(im.find('LONGOFFSET').text)
-        self.altOff   = float(im.find('HEIGHTOFFSET').text)
+        self.linOff   = np.float64(im.find('LINEOFFSET').text)
+        self.colOff   = np.float64(im.find('SAMPOFFSET').text)
+        self.latOff   = np.float64(im.find('LATOFFSET').text)
+        self.lonOff   = np.float64(im.find('LONGOFFSET').text)
+        self.altOff   = np.float64(im.find('HEIGHTOFFSET').text)
 
-        self.linScale = float(im.find('LINESCALE').text)
-        self.colScale = float(im.find('SAMPSCALE').text)
-        self.latScale = float(im.find('LATSCALE').text)
-        self.lonScale = float(im.find('LONGSCALE').text)
-        self.altScale = float(im.find('HEIGHTSCALE').text)
+        self.linScale = np.float64(im.find('LINESCALE').text)
+        self.colScale = np.float64(im.find('SAMPSCALE').text)
+        self.latScale = np.float64(im.find('LATSCALE').text)
+        self.lonScale = np.float64(im.find('LONGSCALE').text)
+        self.altScale = np.float64(im.find('HEIGHTSCALE').text)
 
         # image dimensions
         self.lastRow = int(tree.find('IMD/NUMROWS').text)
