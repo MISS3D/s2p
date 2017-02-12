@@ -1,6 +1,6 @@
 CXXFLAGS ?= -march=native -O3
-override CXXFLAGS := $(CXXFLAGS) `gdal-config --cflags`
-override CXXLIBS  := $(CXXLIBS) `gdal-config --libs`
+override CXXFLAGS := $(CXXFLAGS) `gdal-config --cflags` `pkg-config --cflags fftw3`
+override CXXLIBS  := $(CXXLIBS) `gdal-config --libs` `pkg-config --libs fftw3` `pkg-config --libs fftw3f`
 
 OBJ = main.o \
       LibImages/LibImages.o \
