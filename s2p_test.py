@@ -11,6 +11,8 @@ import argparse
 import os
 import shutil
 import multiprocessing
+import collections
+import json
 
 import s2p
 import s2plib
@@ -123,9 +125,11 @@ def end2end(config,ref_dsm,absmean_tol=0.025,percentile_tol=1.):
     print('Configuration file: ',config)
     print('Reference DSM:',ref_dsm,os.linesep)
     
-    s2p.main(config)
+    with open(config, 'r') as f:
+        test_cfg = json.load(f)
+        s2p.main(test_cfg)
 
-    outdir = s2plib.config.cfg['out_dir']
+    outdir = test_cfg['out_dir']
     
     computed = gdal.Open(os.path.join(outdir,'dsm.tif')).ReadAsArray()
     expected = gdal.Open(ref_dsm).ReadAsArray()
@@ -137,18 +141,26 @@ def end2end_cluster(config):
     print('Configuration file: ',config)
 
     print('Running end2end in sequential mode to get reference DSM ...')
-    
-    s2p.main(config)
 
-    outdir = s2plib.config.cfg['out_dir']
-    
+    with open(config, 'r') as f:
+        test_cfg = json.load(f)
+        test_cfg['skip_existing'] = True
+        s2p.main(test_cfg)
+
+    outdir = test_cfg['out_dir']
     expected = gdal.Open(os.path.join(outdir,'dsm.tif')).ReadAsArray()
-    shutil.move(outdir, '{}_ref'.format(outdir))
     
+    print('Running end2end in cluster mode ...')
+    test_cfg_cluster = dict()
+    test_cfg_cluster.update(test_cfg)
+    test_cfg_cluster['out_dir'] = test_cfg_cluster['out_dir'] + "_cluster"
+    test_cfg_cluster['skip_existing'] = True
+
     print("Running initialisation step ...")
-    s2p.main(config,["initialisation"])
+    s2p.main(test_cfg_cluster,["initialisation"])
     
     # Retrieve tiles list
+    outdir = test_cfg_cluster['out_dir']
     tiles_file = os.path.join(outdir,'tiles.txt')
 
     tiles = []
@@ -165,10 +177,14 @@ def end2end_cluster(config):
         if s2p.ALL_STEPS[step] is True:
             print('Running %s on each tile...' % step)
             for tile in tiles:
-                s2p.main(tile, [step])
+                print('tile : %s' % tile)
+                with open(tile, 'r') as f:
+                    tile_cfg_cluster = json.load(f)
+                    s2p.main(tile_cfg_cluster, [step])
         else:
             print('Running %s...' % step)
-            s2p.main(config, [step])
+            print('test_cfg_cluster : %s' % test_cfg_cluster)
+            s2p.main(test_cfg_cluster, [step])
              
     computed = gdal.Open(os.path.join(outdir,'dsm.tif')).ReadAsArray()
     
@@ -176,14 +192,14 @@ def end2end_cluster(config):
              
     
 ############### Registered tests #######################
-    
-registered_tests = { 'unit_image_keypoints' : (unit_image_keypoints,[]),
-                     'unit_matching' : (unit_matching,[]),
-                     'unit_matches_from_rpc' : (unit_matches_from_rpc,[]),
-                     'end2end_pair' : (end2end, ['testdata/input_pair/config.json','testdata/expected_output/pair/dsm.tif',0.025,1]),
-                     'end2end_triplet' : (end2end, ['testdata/input_triplet/config.json','testdata/expected_output/triplet/dsm.tif',0.05,2]),
-                     'end2end_cluster' : (end2end_cluster, ['testdata/input_triplet/config.json'])}
 
+registered_tests = [('unit_image_keypoints', (unit_image_keypoints,[])),
+                    ('unit_matching', (unit_matching,[])),
+                    ('unit_matches_from_rpc', (unit_matches_from_rpc,[])),
+                    ('end2end_pair', (end2end, ['testdata/input_pair/config.json','testdata/expected_output/pair/dsm.tif',0.025,1])),
+                    ('end2end_triplet', (end2end, ['testdata/input_triplet/config.json','testdata/expected_output/triplet/dsm.tif',0.05,2])),
+                    ('end2end_cluster', (end2end_cluster, ['testdata/input_triplet/config.json']))]
+registered_tests = collections.OrderedDict(registered_tests)
 
 
 ############### Tests main  #######################
@@ -214,7 +230,8 @@ if __name__ == '__main__':
     print('The following tests will be run: '+str(tests_to_run))
 
     # First, export the default config to start each test from a clean config
-    test_default_cfg = s2plib.config.cfg
+    s2plib.config.cfg["temporary_dir"] = "/tmp"
+    test_default_cfg = s2plib.config.cfg.copy()
 
     # Ensure default temporary dir exists
     if not os.path.isdir(test_default_cfg['temporary_dir']):
@@ -228,7 +245,7 @@ if __name__ == '__main__':
             command,args = registered_tests[test]
             try:
                 # Ensure each test starts from the default cfg
-                s2plib.config.cfg = test_default_cfg
+                s2plib.config.cfg.update(test_default_cfg)
                 command(*args)
                 print('Success.'+os.linesep)
             except AssertionError as e:
