@@ -35,17 +35,17 @@ We prefer to solve compromises according to the following order:
 Guidelines for reviewers
 ========================
 
-(E6) Reviewers should send feed backs on submitted PR no more than 5
-business days after PR submission.
+(E6) PR should be closed by order of submission. This means that only
+the oldest PR can be merged or closed.
 
-(E7) Feedback can be questions, comments, requested changes,
-rejection or approval.
+(E7) Rule (E6) does not prevent from starting the review of more recent PR.
 
-(E8) Rule (E6) applies even after first feedback: no PR should remain
-inactive for more than 5 business days.
+(E8) In case changes have been requested or questions asked, the PR
+author has 3 business days to adress them.
 
-(E9) In the event of (E6) or (E8) not being respected, PR can be
-merged by any member with write access, without further approval.
+(E9) If rule (E8) is not respected, the PR can be closed by any member
+with write access, in order to avoid blocking other PR. Once the
+comments and changes have been adressed, the author can re-open the PR.
 
 
 PHILOSOPHY
