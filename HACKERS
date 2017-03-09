@@ -1,5 +1,8 @@
 GITIQUETTE
 
+Guidelines for contributors
+===========================
+
 (E1) To contribute, make a pull request to https://github.com/MISS3D/s2p
 
 (E2) Make sure that your pull request passes all the tests before sending it.
@@ -27,3 +30,63 @@ We prefer to solve compromises according to the following order:
 (P5) The code is the simplest possible.
 (P6) The code has the least amount of dependences possible.
 (P7) The code is portable.
+
+
+Guidelines for reviewers
+========================
+
+(E6) Reviewers should send feed backs on submitted PR no more than 5
+business days after PR submission.
+
+(E7) Feedback can be questions, comments, requested changes,
+rejection or approval.
+
+(E8) Rule (E6) applies even after first feedback: no PR should remain
+inactive for more than 5 business days.
+
+(E9) In the event of (E6) or (E8) not being respected, PR can be
+merged by any member with write access, without further approval.
+
+
+PHILOSOPHY
+
+Reviewing pull requests is very different from reviewing scientific
+papers: it is a mean of writing better code together. Emphasis should
+be on interactions between authors and reviewers to reach
+consensus. As such, it is important to keep an open mind and refer to
+the philosophy points (R1)--(R7) outlined below.
+
+
+(R1) Be empathetic. People seldom spend time writing code to bother
+reviewers. If you do not understand the purpose of some changes, or if
+the problem addressed is not part of your use cases, it does not mean
+that the problem does not exist.
+
+(R2) Be helpful. You did not write this code and would probably not
+have written it that way. But if you request changes, be specific:
+make suggestions, push patches, explain what you expect. Remember, the
+goal is to write code together.
+
+(R3) Be reactive. There is nothing worse than a discussion that never
+starts. If you ask questions, acknowledge replies, and discuss with
+the authors to reach consensus.
+
+(R4) Be Flexible. Rules are meant as a general frame of collaboration,
+not as a huge fence around your castle. And rules have bugs and
+exceptions too.
+
+(R5) Review purpose first. Agreeing with the purpose and with the code
+are two different things. Agreement on the purpose is often more
+important for authors than getting the code in master 'as is'. And
+reviewing purposes is less time consuming than reviewing code.
+
+(R6) Trust the tests. If tests were not changed in the PR and the
+build is passing, then probably nothing outstandingly wrong is done in
+the PR. If tests were changed, review tests changes first.
+
+(R7) Be brave. There are and will be bugs in master. And there are
+probably bugs in the PR you are reviewing. Do not worry about failing
+to spot them, since you are not the only defender: tests are there,
+and users too.
+
+
