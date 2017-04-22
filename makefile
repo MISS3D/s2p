@@ -1,12 +1,12 @@
 # the following two options are used to control all C and C++ compilations
-export CFLAGS =   -march=native -O3
+export CFLAGS =   -march=native -O3 `gdal-config --cflags` `pkg-config --cflags fftw3`
 export CXXFLAGS = -march=native -O3
 
 # these options are only used for the programs directly inside "./c/"
 LDLIBS = -lstdc++
-IIOLIBS = -lz -ltiff -lpng -ljpeg -lm
+IIOLIBS = `gdal-config --libs` -lz -ltiff -lpng -ljpeg -lm
 GEOLIBS = -lgeotiff -ltiff
-FFTLIBS = -lfftw3f -lfftw3
+FFTLIBS = `pkg-config --libs fftw3` `pkg-config --libs fftw3f`
 
 # The following conditional statement appends "-std=gnu99" to CFLAGS when the
 # compiler does not define __STDC_VERSION__.  The idea is that many older
