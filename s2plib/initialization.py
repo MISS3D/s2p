@@ -129,6 +129,7 @@ def make_dirs():
     Create directories needed to run s2p.
     """
     common.mkdir_p(cfg['out_dir'])
+    common.mkdir_p(os.path.join(cfg['out_dir'], 'tiles'))
     common.mkdir_p(os.path.expandvars(cfg['temporary_dir']))
 
     # store a json dump of the config.cfg dictionary
@@ -205,13 +206,14 @@ def compute_tiles_coordinates(rx, ry, rw, rh, tw, th, z=1):
     return out, neighborhood_dict
 
 
-def get_tile_dir(x, y, w, h):
+def get_tile_dir(x, y, w, h, max_digit_row=0, max_digit_col=0):
     """
     Get the name of a tile directory
     """
     return os.path.join(cfg['out_dir'],
-                        'tiles_row_{}_height_{}'.format(y, h),
-                        'col_{}_width_{}'.format(x, w))
+                        'tiles',
+                        'row_{:0{}}_height_{}'.format(y, max_digit_row, h),
+                        'col_{:0{}}_width_{}'.format(x, max_digit_col, w))
 
 
 def tiles_full_info(tw, th):
@@ -237,6 +239,10 @@ def tiles_full_info(tw, th):
 
     # list tiles coordinates
     tiles_coords, neighborhood_coords_dict = compute_tiles_coordinates(rx, ry, rw, rh, tw, th, z)
+    if 'max_digit_tile_row' not in cfg:
+        cfg['max_digit_tile_row'] = len(str(tiles_coords[len(tiles_coords) - 1][0]))
+    if 'max_digit_tile_col' not in cfg:
+        cfg['max_digit_tile_col'] = len(str(tiles_coords[len(tiles_coords) - 1][1]))
 
     # compute all masks in parallel as numpy arrays
     tiles_masks = parallel.launch_calls_simple(masking.cloud_water_image_domain,
@@ -252,7 +258,7 @@ def tiles_full_info(tw, th):
         if mask.any():  # there's at least one non-masked pixel in the tile
             tile = {}
             x, y, w, h = coords
-            tile['dir'] = get_tile_dir(x, y, w, h)
+            tile['dir'] = get_tile_dir(x, y, w, h, cfg['max_digit_tile_row'], cfg['max_digit_tile_col'])
             tile['coordinates'] = coords
             tile['mask'] = mask
             tile['neighborhood_dirs'] = list()
@@ -263,10 +269,8 @@ def tiles_full_info(tw, th):
             elif key in neighborhood_coords_dict:
                 for coords2 in neighborhood_coords_dict[key]:
                     x2, y2, w2, h2 = coords2
-                    tile['neighborhood_dirs'].append(get_tile_dir(x2,
-                                                                  y2,
-                                                                  w2,
-                                                                  h2))
+                    tile['neighborhood_dirs'].append(get_tile_dir(x2, y2, w2, h2,
+                                                                  cfg['max_digit_tile_row'], cfg['max_digit_tile_col']))
             tiles.append(tile)
 
     # make tiles directories and store json configuration dumps
@@ -283,6 +287,8 @@ def tiles_full_info(tw, th):
         tile_cfg['max_processes'] = 1
         tile_cfg['omp_num_threads'] = 1
         tile_cfg['neighborhood_dirs'] = tile['neighborhood_dirs']
+        tile_cfg['max_digit_tile_row'] = cfg['max_digit_tile_row']
+        tile_cfg['max_digit_tile_col'] = cfg['max_digit_tile_col']
 
         tile_json = os.path.join(tile['dir'], 'config.json')
         tile['json'] = tile_json

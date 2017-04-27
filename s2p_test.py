@@ -40,7 +40,7 @@ def unit_image_keypoints():
     print(str(len(ref_set)-len(common_set))+" kpts found in ref but not in test")
 
     dist_tol = 0.01
-    
+
     nb_test_not_in_ref = 0
     for i in range(test_kpts.shape[0]):
         found = False
@@ -70,20 +70,20 @@ def unit_image_keypoints():
     np.testing.assert_equal(nb_ref_not_in_test,0)
     np.testing.assert_equal(nb_test_not_in_ref,0)
 
-    
+
 def unit_matching():
-    
+
     test_matches = s2plib.sift.keypoints_match('testdata/units/sift1.txt','testdata/units/sift2.txt')
     expected_matches = np.loadtxt('testdata/expected_output/units/unit_keypoints_match.txt')
 
     # Check that numbers of matches are the same
     np.testing.assert_equal(test_matches.shape[0],expected_matches.shape[0],verbose=True)
-    
+
     # Check that all matches are the same
     np.testing.assert_allclose(test_matches,expected_matches,rtol=0.01,atol=0.1,verbose=True)
 
 
-    
+
 def unit_matches_from_rpc():
 
     s2plib.config.cfg['disable_srtm'] = True
@@ -92,7 +92,7 @@ def unit_matches_from_rpc():
 
     test_matches = s2plib.rpc_utils.matches_from_rpc(rpc1,rpc2,100,100,200,200,5)
     expected_matches = np.loadtxt('testdata/expected_output/units/unit_matches_from_rpc.txt')
-    
+
     np.testing.assert_equal(test_matches.shape[0],125,verbose=True)
     np.testing.assert_allclose(test_matches,expected_matches,rtol=0.01,atol=0.1,verbose=True)
 
@@ -112,7 +112,8 @@ def unit_distributed_plyflatten(config):
 
     print('Running plyflatten dsm reference ...')
 
-    clouds = '\n'.join(glob.glob(os.path.join(outdir, "*", "*", "cloud.ply")))
+    clouds = '\n'.join(glob.glob(os.path.join(outdir, "tiles", "*", "*", "cloud.ply")))
+
     out_dsm = os.path.join(outdir, "dsm_ref.tif")
     cmd = ['plyflatten', str(test_cfg['dsm_resolution']), out_dsm]
     if 'utm_bbx' in test_cfg:
@@ -138,36 +139,36 @@ def end2end_compare_dsm(computed,expected,absmean_tol,percentile_tol):
     # compare number of valid pixels
     n_computed = np.count_nonzero(np.isfinite(computed))
     n_expected = np.count_nonzero(np.isfinite(expected))
-    
+
     np.testing.assert_allclose(n_computed, n_expected, rtol=.01, atol=100,verbose=True)
 
     diff = computed-expected
 
     # Strip nan from diff
     diff = diff[np.where(np.isfinite(diff))]
-    
+
     # check mean difference
     meandiff = np.mean(diff)
     print('mean-difference:',meandiff,'(abs. tolerance='+str(absmean_tol)+')')
     assert(np.abs(meandiff) <= absmean_tol)
-    
+
     # check largest difference
     percentile = np.nanpercentile(np.abs(diff), 99)
     print('99th percentile abs difference',percentile,'(tolerance='+str(percentile_tol)+')')
     assert(percentile <= percentile_tol)
-    
+
 
 def end2end(config,ref_dsm,absmean_tol=0.025,percentile_tol=1.):
 
     print('Configuration file: ',config)
     print('Reference DSM:',ref_dsm,os.linesep)
-    
+
     with open(config, 'r') as f:
         test_cfg = json.load(f)
         s2p.main(test_cfg)
 
     outdir = test_cfg['out_dir']
-    
+
     computed = s2plib.common.gdal_read_as_array_with_nans(os.path.join(outdir,'dsm.tif'))
     expected = s2plib.common.gdal_read_as_array_with_nans(ref_dsm)
 
@@ -194,19 +195,19 @@ def end2end_cluster(config):
 
     print("Running initialisation step ...")
     s2p.main(test_cfg_cluster,["initialisation"])
-    
+
     # Retrieve tiles list
     outdir = test_cfg_cluster['out_dir']
     tiles_file = os.path.join(outdir,'tiles.txt')
 
     tiles = []
-    
+
     with open(tiles_file) as f:
         tiles = f.readlines()
 
     # Strip trailing \n
     tiles = list(map(str.strip,tiles))
-        
+
     print('Found '+str(len(tiles))+' tiles to process')
 
     for step in s2p.ALL_STEPS:
@@ -221,12 +222,12 @@ def end2end_cluster(config):
             print('Running %s...' % step)
             print('test_cfg_cluster : %s' % test_cfg_cluster)
             s2p.main(test_cfg_cluster, [step])
-             
+
     computed = s2plib.common.gdal_read_as_array_with_nans(os.path.join(outdir,'dsm.tif'))
 
     end2end_compare_dsm(computed,expected,0,0)
-             
-    
+
+
 ############### Registered tests #######################
 
 registered_tests = [('unit_image_keypoints', (unit_image_keypoints,[])),
@@ -244,7 +245,7 @@ registered_tests = collections.OrderedDict(registered_tests)
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=('S2P: Satellite Stereo '
                                                   'Pipeline tests suite'))
-    
+
     parser.add_argument('--tests',nargs='+',metavar='test', help='(List of tests to run)')
     parser.add_argument('--all',help=('Run all tests'),action='store_true')
 
@@ -253,7 +254,7 @@ if __name__ == '__main__':
     # If nothing provided, display list of tests
     if not args.tests and not args.all:
         parser.print_help()
-        
+
         print(os.linesep+'available tests:')
         for test in registered_tests:
             print('\t'+test)
@@ -273,9 +274,9 @@ if __name__ == '__main__':
     # Ensure default temporary dir exists
     if not os.path.isdir(test_default_cfg['temporary_dir']):
         os.mkdir(test_default_cfg['temporary_dir'])
-    
+
     failed = []
-    
+
     for test in tests_to_run:
         if test in registered_tests:
             print('Running test '+test+'...'+os.linesep)
@@ -292,7 +293,7 @@ if __name__ == '__main__':
                 failed.append(test)
         else:
             print('Test '+test+' not found')
-    
+
     if len(failed)==0:
         print('All tests passes')
         exit(0)
