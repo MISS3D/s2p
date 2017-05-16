@@ -125,3 +125,6 @@ cfg['use_srtm_for_water'] = False
 
 # If true, lidar preprocessor will be called if found in path
 cfg['run_lidar_preprocessor'] = False
+
+# value of the relative pointing error threshold
+cfg['epi_thresh'] = 10
