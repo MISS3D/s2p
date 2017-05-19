@@ -287,7 +287,7 @@ int main(int c, char *v[])
             continue;
 
         // convert (lon, lat, alt) to utm
-        utm_alt_zone(X, X[1], X[0], zone);
+        //utm_alt_zone(X, X[1], X[0], zone);
 
         // colorization: if greyscale, copy the grey level on each channel
         uint8_t rgb[3];
@@ -311,7 +311,6 @@ int main(int c, char *v[])
             }
         }
     }
-
     fclose(ply_file);
     return 0;
 }

@@ -14,7 +14,7 @@
 #include "lists.c"
 #include "fail.c"
 #include "xmalloc.c"
-
+#define PI   3.141592653589793238
 
 // convert string like '28N' into a number like 32628, according to:
 // WGS84 / UTM northern hemisphere: 326zz where zz is UTM zone number
@@ -33,6 +33,19 @@ static int get_utm_zone_index_for_geotiff(char *utm_zone)
 	out += atoi(utm_zone);
 	return out;
 }
+
+// apply equirectangularProjection to the clouds point around a central latitude and central longitude
+
+double equirectangularProjectionLongitude(double lont, double centralLont, double centralLat)
+{
+     double nonDistortedLongitude=(lont-centralLont)*cos(centralLat/180*PI)+centralLont;
+     return nonDistortedLongitude;
+}
+// double equirectangularProjectionLatitude(double lat, double centralLont, double centralLat)
+// {
+// 	return lat-centralLat;
+// }
+
 
 void set_geotif_header(char *tiff_fname, char *utm_zone, double xoff,
 		double yoff, double scale)
@@ -257,6 +270,55 @@ static void add_ply_points_to_images(struct images *x,
 }
 
 
+// open a ply file, and accumulate its points to the image by applying an equirectangularProjection around the central lontitude and latitude of the images
+static void add_ply_points_to_images_central(struct images *x,
+		double xmin, double ymax, double resolution,
+		char utm_zone[3], char *fname, int col_idx,double centralLont,double centralLat)
+{
+	FILE *f = fopen(fname, "r");
+	if (!f) {
+		fprintf(stderr, "WARNING: can not open file \"%s\"\n", fname);
+		return;
+	}
+
+	// check that the utm zone is the same as the provided one
+	char utm[5];
+	int isbin=1;
+	struct ply_property t[100];
+	size_t n = header_get_record_length_and_utm_zone(f, utm, &isbin, t);
+	if (0 != strncmp(utm_zone, utm, 3))
+		fprintf(stderr, "error: different UTM zones among ply files\n");
+
+	if (col_idx < 2 || col_idx > 5)
+		exit(fprintf(stderr, "error: bad col_idx %d\n", col_idx));
+
+
+	double data[n];
+	while ( n == get_record(f, isbin, t, n, data) ) {
+		// data[0]=equirectangularProjectionLongitude(data[0],centralLont,centralLat);
+	        //		 printf ("longitude: %4.2f", data[0]);
+		//data[1]=equirectangularProjectionLatitude(data[1],centralLont,centralLat);
+		int i = rescale_double_to_int(data[0], xmin, resolution);
+		int j = rescale_double_to_int(-data[1], -ymax, resolution);
+
+		if ((0 <= i) && (i < x->w) && (0 <= j) && (j < x->h)) {
+		  if (col_idx == 2) {
+		    add_height_to_images(x, i, j, data[2]);
+		    assert(isfinite(data[2]));
+		  }
+		  else
+		    {
+		      unsigned int rgb = data[col_idx];
+		      add_height_to_images(x, i, j, rgb);
+		    }
+		}
+
+	}
+
+	fclose(f);
+}
+
+
 void help(char *s)
 {
 	fprintf(stderr, "usage:\n\t"
@@ -311,6 +373,11 @@ int main(int c, char *v[])
 	}
 	fprintf(stderr, "xmin: %lf, xmax: %lf, ymin: %lf, ymax: %lf\n", xmin, xmax, ymin, ymax);
 	fprintf(stderr, "xoff: %lf, yoff: %lf, xsize: %d, ysize: %d\n", xoff, yoff, xsize, ysize);
+
+    // compute the centrale longitude and latitude
+    
+    double xcent=xsize/2+xoff; //central longitude 
+    double ycent=ysize/2+yoff; //central longitude
 
 	// allocate and initialize output images
 	struct images x;
