@@ -303,3 +303,35 @@ def tiles_full_info(tw, th):
                    tile['mask'].astype(np.uint8))
 
     return tiles
+
+
+def make_path_relative_to_file(path, f):
+    return os.path.join(os.path.abspath(os.path.dirname(f)), path)
+
+
+def read_config_file(config_file):
+    """
+    Read a json configuration file and interpret relative paths.
+
+    If any input or output path is a relative path, it is interpreted as
+    relative to the config_file location (and not relative to the current
+    working directory). Absolute paths are left unchanged.
+    """
+    with open(config_file, 'r') as f:
+        user_cfg = json.load(f)
+
+    # output paths
+    if not os.path.isabs(user_cfg['out_dir']):
+        print('WARNING: out_dir is a relative path. It is interpreted with '
+              'respect to {} location (not cwd)'.format(config_file))
+        user_cfg['out_dir'] = make_path_relative_to_file(user_cfg['out_dir'],
+                                                         config_file)
+        print('out_dir is: {}'.format(user_cfg['out_dir']))
+
+    # input paths
+    for img in user_cfg['images']:
+        for d in ['img', 'rpc', 'clr', 'cld', 'roi', 'wat']:
+            if d in img and img[d] is not None and not os.path.isabs(img[d]):
+                img[d] = make_path_relative_to_file(img[d], config_file)
+
+    return user_cfg
