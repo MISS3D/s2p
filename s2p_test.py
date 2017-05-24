@@ -90,7 +90,7 @@ def unit_plyflatten():
     e = "testdata/expected_output/plyflatten/dsm_40cm.tiff"  # expected output
     o = s2plib.common.tmpfile(".tiff")                       # actual output
     s2plib.common.run("echo %s | plyflatten 0.4 %s" % (f,o)) # compute dsm
-    s = "\"%%w %%h %%v %%Y\"" # statistics to compare: width,height,avg,numnans
+    s = "\"%w %h %v %Y\n\"" # statistics to compare: width,height,avg,numnans
     X = s2plib.common.tmpfile(".txt")
     Y = s2plib.common.tmpfile(".txt")
     s2plib.common.run("imprintf %s %s > %s" % (s, o, X))     # actual stats
@@ -320,7 +320,7 @@ if __name__ == '__main__':
             print('Test '+test+' not found')
     
     if len(failed)==0:
-        print('All tests passes')
+        print('All tests passed')
         exit(0)
     else:
         print('The following tests failed:')
