@@ -118,7 +118,7 @@ def unit_distributed_plyflatten(config):
 
     print('Running end2end with distributed plyflatten dsm ...')
 
-    test_cfg = s2p.read_config_file(config)
+    test_cfg = s2plib.initialization.read_config_file(config)
     test_cfg['skip_existing'] = True
     s2p.main(test_cfg)
 
@@ -177,7 +177,7 @@ def end2end(config,ref_dsm,absmean_tol=0.025,percentile_tol=1.):
     print('Configuration file: ',config)
     print('Reference DSM:',ref_dsm,os.linesep)
     
-    test_cfg = s2p.read_config_file(config)
+    test_cfg = s2plib.initialization.read_config_file(config)
     s2p.main(test_cfg)
 
     outdir = test_cfg['out_dir']
@@ -192,7 +192,7 @@ def end2end_cluster(config):
 
     print('Running end2end in sequential mode to get reference DSM ...')
 
-    test_cfg = s2p.read_config_file(config)
+    test_cfg = s2plib.initialization.read_config_file(config)
     test_cfg['skip_existing'] = True
     s2p.main(test_cfg)
     
@@ -220,7 +220,7 @@ def end2end_cluster(config):
             print('Running %s on each tile...' % step)
             for tile in tiles:
                 print('tile : %s' % tile)
-                tile_cfg_cluster = s2p.read_config_file(tile)
+                tile_cfg_cluster = s2plib.initialization.read_config_file(tile)
                 s2p.main(tile_cfg_cluster, [step])
         else:
             print('Running %s...' % step)
@@ -233,7 +233,7 @@ def end2end_cluster(config):
   
 def end2end_mosaic(config,ref_height_map,absmean_tol=0.025,percentile_tol=1.):
 
-    test_cfg = s2p.read_config_file(config)
+    test_cfg = s2plib.initialization.read_config_file(config)
     outdir = test_cfg['out_dir']
     test_cfg['skip_existing'] = True
     s2p.main(test_cfg)

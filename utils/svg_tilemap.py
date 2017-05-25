@@ -24,7 +24,7 @@ import numpy as np
 import datetime
 
 
-import s2p
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from s2plib.config import cfg
 from s2plib import common
 from s2plib import initialization
@@ -100,6 +100,6 @@ if __name__ == '__main__':
                               'parameters'))
     args = parser.parse_args()
 
-    user_cfg = s2p.read_config_file(args.config)
+    user_cfg = initialization.read_config_file(args.config)
 
     main(user_cfg)

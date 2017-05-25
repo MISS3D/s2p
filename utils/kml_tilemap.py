@@ -25,9 +25,10 @@ import collections
 import utm
 import simplekml
 import gdal
-
 import numpy as np
-import s2p
+
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from s2plib import initialization
 from s2plib import rpc_model
 from s2plib import common
 
@@ -96,7 +97,7 @@ def get_coordinates_with_img(img):
     return [pix_2_latlon(gt, x[0], x[1], zone_number, northern) for x in roi]
 
 def get_coordinates_with_config(tile, m, M):
-    tile_cfg = s2p.read_config_file(os.path.join(tile, "config.json"))
+    tile_cfg = initialization.read_config_file(os.path.join(tile, "config.json"))
 
     x = tile_cfg['roi']['x']
     y = tile_cfg['roi']['y']
@@ -181,7 +182,7 @@ def write_tiles_polygon(tile, kml, m=None, M=None, message=None, error_mode=Fals
         color = simplekml.Color.green
         head_style = green_style
 
-    tile_cfg = s2p.read_config_file(os.path.join(tile, "config.json"))
+    tile_cfg = initialization.read_config_file(os.path.join(tile, "config.json"))
     x = tile_cfg['roi']['x']
     y = tile_cfg['roi']['y']
     w = tile_cfg['roi']['w']

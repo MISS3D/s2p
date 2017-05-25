@@ -798,12 +798,6 @@ def main(user_cfg, steps=ALL_STEPS):
     common.print_elapsed_time(since_first_call=True)
 
 
-def make_path_relative_to_json_file(path,json_file):
-    json_abs_path = os.path.abspath(os.path.dirname(json_file))
-    out_path = os.path.join(json_abs_path,path)
-    return out_path
-
-
 def read_tiles(tiles_file):
     tiles = []
     outdir = os.path.dirname(tiles_file)
@@ -818,27 +812,6 @@ def read_tiles(tiles_file):
     return tiles
 
 
-def read_config_file(config_file):
-    # read the json configuration file
-    with open(config_file, 'r') as f:
-        user_cfg = json.load(f)
-
-    # Check if out_dir is a relative path
-    # In this case the relative path is relative to the config.json location,
-    # and not to the cwd
-    if not os.path.isabs(user_cfg['out_dir']):
-        print('WARNING: Output directory is a relative path, it will be interpreted with respect to config.json location, and not cwd')
-        user_cfg['out_dir'] = make_path_relative_to_json_file(user_cfg['out_dir'],config_file)
-        print('Output directory will be: '+user_cfg['out_dir'])
-
-    for i in range(0,len(user_cfg['images'])):
-        for d in ['clr','cld','roi','wat','img','rpc']:
-            if d in user_cfg['images'][i] and user_cfg['images'][i][d] is not None and not os.path.isabs(user_cfg['images'][i][d]):
-                user_cfg['images'][i][d]=make_path_relative_to_json_file(user_cfg['images'][i][d],config_file)
-        
-    return user_cfg
-
-
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=('S2P: Satellite Stereo '
                                                   'Pipeline'))
@@ -850,7 +823,7 @@ if __name__ == '__main__':
                         default=ALL_STEPS)
     args = parser.parse_args()
 
-    user_cfg = read_config_file(args.config)
+    user_cfg = initialization.read_config_file(args.config)
 
     main(user_cfg, args.step)
 
