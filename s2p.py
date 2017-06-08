@@ -70,7 +70,11 @@ def pointing_correction(tile, i):
     # correct pointing error
     print('correcting pointing on tile {} {} pair {}...'.format(x, y, i))
     try:
-        A, m = pointing_accuracy.compute_correction(img1, rpc1, img2, rpc2, x, y, w, h)
+        A, m = pointing_accuracy.compute_correction(img1, rpc1, img2, rpc2,
+                                                    x-w, y-h, w*2, h*2)
+        m = m[np.where(np.linalg.norm([(m[:, 0]-(x+w/2))/w, (m[:, 1]-(y+h/2))/h],
+                                      axis=0) < 3.0/4)]
+
     except common.RunFailure as e:
         stderr = os.path.join(out_dir, 'stderr.log')
         with open(stderr, 'w') as f:
@@ -148,24 +152,6 @@ def rectification_pair(tile, i):
         m = None
 
     x, y, w, h = tile['coordinates']
-
-    cur_dir = os.path.join(tile['dir'],'pair_{}'.format(i))
-    for n in tile['neighborhood_dirs']:
-        nei_dir = os.path.join(tile['dir'], n, 'pair_{}'.format(i))
-        if os.path.exists(nei_dir) and not os.path.samefile(cur_dir, nei_dir):
-            sift_from_neighborhood = os.path.join(nei_dir, 'sift_matches.txt')
-            try:
-                m_n = np.loadtxt(sift_from_neighborhood)
-                # added sifts in the ellipse of semi axes : (3*w/4, 3*h/4)
-                m_n = m_n[np.where(np.linalg.norm([(m_n[:,0]-(x+w/2))/w,
-                                                   (m_n[:,1]-(y+h/2))/h],
-                                                  axis=0) < 3.0/4)]
-                if m is None:
-                    m = m_n
-                else:
-                    m = np.concatenate((m, m_n))
-            except IOError:
-                print('%s does not exist' % sift_from_neighborhood)
 
     rect1 = os.path.join(out_dir, 'rectified_ref.tif')
     rect2 = os.path.join(out_dir, 'rectified_sec.tif')
