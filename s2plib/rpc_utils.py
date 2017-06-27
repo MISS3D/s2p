@@ -493,7 +493,7 @@ def compute_new_elevations(rpc1,x,y,w,h,m,M,DEM,long_min_DEM,lat_min_DEM,long_re
     max_elevation+=elevationMolaError
     return min_elevation,max_elevation
 
-def corresponding_roi(rpc1, rpc2, x, y, w, h,zone_extension=0.0002699368311325688,mola_elevation=10): # zoneExtension=0.0002699368311325688 for Error RPC 0.035mRad
+def corresponding_roi(rpc1, rpc2, x, y, w, h):#,zone_extension=0.0002699368311325688,mola_elevation=10): # zoneExtension=0.0002699368311325688 for Error RPC 0.035mRad
     """
     Uses RPC functions to determine the region of im2 associated to the
     specified ROI of im1.
@@ -522,8 +522,8 @@ def corresponding_roi(rpc1, rpc2, x, y, w, h,zone_extension=0.000269936831132568
         # m, M e= compute_new_elevations(rpc1,x,y,w,h,m, M,*molaPoints)
         DEM=mola_DEM[0]
         long_min_DEM,lat_min_DEM,long_res_DEM,lat_res_DEM= mola_DEM[1]
-        #zone_extension=cfg["latitude_longitude_RPC_MAX_error"]
-        #mola_elevation=cfg["elevation_mola_error"]
+        zone_extension=cfg["latitude_longitude_RPC_MAX_error"]
+        mola_elevation=cfg["elevation_mola_error"]
         [min_elevation,max_elevation]=compute_new_elevations(rpc1,x,y,w,h,m,M,DEM,long_min_DEM,lat_min_DEM,long_res_DEM,lat_res_DEM,zone_extension,mola_elevation)
         m=max(m,min_elevation)
         M=min(M,max_elevation)
