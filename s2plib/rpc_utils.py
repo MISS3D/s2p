@@ -522,8 +522,9 @@ def corresponding_roi(rpc1, rpc2, x, y, w, h):#,zone_extension=0.000269936831132
         # m, M e= compute_new_elevations(rpc1,x,y,w,h,m, M,*molaPoints)
         DEM=mola_DEM[0]
         long_min_DEM,lat_min_DEM,long_res_DEM,lat_res_DEM= mola_DEM[1]
-        zone_extension=cfg["latitude_longitude_RPC_MAX_error"]
+        zone_extension=cfg["latitude_longitude_attitude_MAX_error"]
         mola_elevation=cfg["elevation_mola_error"]
+        #return(type(zone_extension))
         [min_elevation,max_elevation]=compute_new_elevations(rpc1,x,y,w,h,m,M,DEM,long_min_DEM,lat_min_DEM,long_res_DEM,lat_res_DEM,zone_extension,mola_elevation)
         m=max(m,min_elevation)
         M=min(M,max_elevation)
