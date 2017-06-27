@@ -45,7 +45,7 @@ from s2plib import masking
 from s2plib import triangulation
 from s2plib import fusion
 from s2plib import visualisation
-
+from s2plib import rpc_utils
 
 def pointing_correction(tile, i):
     """
@@ -835,7 +835,10 @@ def read_config_file(config_file):
         for d in ['clr','cld','roi','wat','img','rpc']:
             if d in user_cfg['images'][i] and user_cfg['images'][i][d] is not None and not os.path.isabs(user_cfg['images'][i][d]):
                 user_cfg['images'][i][d]=make_path_relative_to_json_file(user_cfg['images'][i][d],config_file)
-        
+    # load the mola points if the config file claims it  
+    if (user_cfg['disable_mola'] ==False):
+        user_cfg['mola_dir'] = make_path_relative_to_json_file(user_cfg['mola_dir'],config_file)
+        rpc_utils.load_mola_DEM(user_cfg['mola_dir']) 
     return user_cfg
 
 

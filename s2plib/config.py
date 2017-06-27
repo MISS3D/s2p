@@ -135,3 +135,17 @@ cfg['run_lidar_preprocessor'] = False
 
 # value of the relative pointing error threshold
 cfg['epi_thresh'] = 10
+
+# false if the mola Points should be used
+cfg['disable_mola'] = True
+
+# directory of MOLA points
+cfg['mola_dir']= 'cropMOLAForS2p-adj.tif'
+
+# parameter for maximal error for the camera attitude expressed in longitude, latitude
+
+cfg['latitude_longitude_attitude_MAX_error']=0.0003
+
+# maximal error for the elevation of te MOLA DEM
+
+cfg['elevation_mola_error'] = 10
