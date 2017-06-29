@@ -355,10 +355,7 @@ def rectify_pair(im1, im2, rpc1, rpc2, x, y, w, h, out1, out2, A=None,
     if sift_matches is not None:
         sift_matches = filter_matches_epipolar_constraint(F, sift_matches,
                                                           cfg['epipolar_thresh'])
-        if len(sift_matches) < 10:
-            print('WARNING: no registration with less than 10 matches')
-        else:
-            H2 = register_horizontally_translation(sift_matches, H1, H2)
+        H2 = register_horizontally_translation(sift_matches, H1, H2)
 
     # compute disparity range
     if cfg['debug']:
