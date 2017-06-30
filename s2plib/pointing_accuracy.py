@@ -432,6 +432,64 @@ def compute_correction(img1, rpc1, img2, rpc2, x, y, w, h):
 
     return A, m
 
+def compute_correction_with_neighbors(img1, rpc1, img2, rpc2, tile,i):
+    """
+    Computes pointing correction matrix for specific tile using its neighbors
+
+    Args:
+        img1: path to the reference image.
+        rpc1: paths to the xml file containing the rpc coefficients of the
+            reference image
+        img2: path to the secondary image.
+        rpc2: paths to the xml file containing the rpc coefficients of the
+            secondary image
+        tile: dictionary containing the information needed to process a tile.
+        i: index of the processed pair
+
+    Returns:
+        a 3x3 matrix representing the planar transformation to apply to img2 in
+        order to correct the pointing error, and the list of sift matches used
+        to compute this correction.
+    """
+    # these lines are partially copied from the function compute_correction from this file and the function rectification_pair od s2p.py 
+
+    out_dir = os.path.join(tile['dir'], 'pair_{}'.format(i))
+    x, y, w, h = tile['coordinates']
+    r1 = rpc_model.RPCModel(rpc1)
+    r2 = rpc_model.RPCModel(rpc2)
+
+    # m contains the sift matches of the current tile  
+    try:
+        m = np.loadtxt(os.path.join(out_dir, 'sift_matches.txt'))
+    except IOError:
+        m = None    
+
+    # m will also contains the sift matches of its neighbors
+
+    cur_dir = os.path.join(tile['dir'],'pair_{}'.format(i))
+    for n in tile['neighborhood_dirs']:
+        nei_dir = os.path.join(tile['dir'], n, 'pair_{}'.format(i))
+        if os.path.exists(nei_dir) and not os.path.samefile(cur_dir, nei_dir):
+            sift_from_neighborhood = os.path.join(nei_dir, 'sift_matches.txt')
+            try:
+                m_n = np.loadtxt(sift_from_neighborhood)
+                # added sifts in the ellipse of semi axes : (3*w/4, 3*h/4)
+                m_n = m_n[np.where(np.linalg.norm([(m_n[:,0]-(x+w/2))/w,
+                                                   (m_n[:,1]-(y+h/2))/h],
+                                                  axis=0) < 3.0/4)]
+                if m is None:
+                    m = m_n
+                else:
+                    m = np.concatenate((m, m_n))
+            except IOError:
+                print('%s does not exist' % sift_from_neighborhood)
+
+    if m is not None:
+        A = local_translation(r1, r2, x, y, w, h, m)
+    else:
+        A = None
+
+    return A, m
 
 def from_next_tiles(tiles, ntx, nty, col, row):
     """
