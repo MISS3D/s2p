@@ -160,13 +160,12 @@ def adjust_tile_size():
     """
     Adjust the size of the tiles.
     """
-    zoom = cfg['subsampling_factor']
-    tile_w = min(cfg['roi']['w'], zoom * cfg['tile_size'])  # tile width
+    tile_w = min(cfg['roi']['w'], cfg['tile_size'])  # tile width
     ntx = int(np.round(float(cfg['roi']['w']) / tile_w))
     # ceil so that, if needed, the last tile is slightly smaller
     tile_w = int(np.ceil(float(cfg['roi']['w']) / ntx))
 
-    tile_h = min(cfg['roi']['h'], zoom * cfg['tile_size'])  # tile height
+    tile_h = min(cfg['roi']['h'], cfg['tile_size'])  # tile height
     nty = int(np.round(float(cfg['roi']['h']) / tile_h))
     tile_h = int(np.ceil(float(cfg['roi']['h']) / nty))
 
@@ -192,22 +191,26 @@ def compute_tiles_coordinates(rx, ry, rw, rh, tw, th, z=1):
             w = min(tw, rx + rw - x)
 
             # ensure that tile coordinates are multiples of the zoom factor
-            x, y, w, h = common.round_roi_to_nearest_multiple(z, x, y, w, h)
-
-            out.append((x, y, w, h))
-
+            #x, y, w, h = common.round_roi_to_nearest_multiple(z, x, y, w, h)
             # get coordinates of tiles from neighborhood
             out2 = []
             for y2 in [y - th, y, y + th]:
                 h2 = min(th, ry + rh - y2)
+                if h2 == 0:
+                    break
                 for x2 in [x - tw, x, x + tw]:
                     w2 = min(tw, rx + rw - x2)
+                    if w2 == 0:
+                        break
                     if rx + rw > x2 >= rx:
                         if ry + rh > y2 >= ry:
-                            x2, y2, w2, h2 = common.round_roi_to_nearest_multiple(z, x2, y2, w2, h2)
+                            #x2, y2, w2, h2 = common.round_roi_to_nearest_multiple(z, x2, y2, w2, h2)
                             out2.append((x2, y2, w2, h2))
 
-            neighborhood_dict[str((x, y, w, h))] = out2
+
+            neighborhood_dict[str((x, y, w, h))] = out2  
+            
+            out.append((x, y, w, h))
 
     return out, neighborhood_dict
 
