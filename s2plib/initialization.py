@@ -120,10 +120,6 @@ def build_cfg(user_cfg):
     x, y, w, h = common.round_roi_to_nearest_multiple(z, x,y, w, h)
     cfg['roi'] = {'x': x, 'y': y, 'w': w, 'h': h}
 
-    # if srtm is disabled set disparity range method to sift
-    if 'disable_srtm' in cfg and cfg['disable_srtm']:
-        cfg['disp_range_method'] = 'sift'
-
     # get utm zone
     if 'utm_zone' not in cfg or cfg['utm_zone'] is None:
         cfg['utm_zone'] = rpc_utils.utm_zone(cfg['images'][0]['rpc'], x, y, w, h)
