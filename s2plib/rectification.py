@@ -415,7 +415,7 @@ def rectify_pair(im1, im2, rpc1, rpc2, x, y, w, h, out1, out2, A=None,
     #  if subsampling_factor'] the homographies are altered to reflect the zoom
     z = cfg['subsampling_factor']
     if z != 1:
-        Z = np.diag((1/z, 1/z, 1))
+        Z = np.diag((1.0/z, 1.0/z, 1.0))
         H1 = np.dot(Z, H1)
         H2 = np.dot(Z, H2)
         disp_m = np.floor(disp_m / z)
