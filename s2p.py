@@ -45,7 +45,124 @@ from s2plib import masking
 from s2plib import triangulation
 from s2plib import fusion
 from s2plib import visualisation
+from s2plib import rpc_utils
+from s2plib import rpc_model
+from s2plib import sift
+import translation_manipulation
 
+def sift_computation(tile, i):
+    """
+    Compute the sift matches between the current tile and its corresponding one
+
+    Args:
+        tile: dictionary containing the information needed to process the tile
+        i: index of the processed pair
+    """
+    # the following lines where copied from the function pointing_correction and the function compute_correction from pointing_accuracy.py
+    x, y, w, h = tile['coordinates']
+    out_dir = os.path.join(tile['dir'], 'pair_{}'.format(i))
+    img1 = cfg['images'][0]['img']
+    rpc1 = cfg['images'][0]['rpc']
+    img2 = cfg['images'][i]['img']
+    rpc2 = cfg['images'][i]['rpc']
+
+    # if cfg['skip_existing'] and os.path.isfile(os.path.join(out_dir,
+    #                                                         'pointing.txt')):
+    #     print('pointing correction done on tile {} {} pair {}'.format(x, y, i))
+    #     return
+
+    r1 = rpc_model.RPCModel(rpc1)
+    r2 = rpc_model.RPCModel(rpc2)
+
+    # m = sift.matches_on_rpc_roi(img1, img2, r1, r2, x, y, w, h)
+
+    # if m is not None:
+    #     A = local_translation(r1, r2, x, y, w, h, m)
+    # else:
+    #     A = None
+
+    # correct pointing error
+    # print('correcting pointing on tile {} {} pair {}...'.format(x, y, i))
+    try:
+        m = sift.matches_on_rpc_roi(img1, img2, r1, r2, x, y, w, h)
+    except common.RunFailure as e:
+        stderr = os.path.join(out_dir, 'stderr.log')
+        with open(stderr, 'w') as f:
+            f.write('ERROR during sift computation with cmd: %s\n' % e[0]['command'])
+            f.write('Stop processing this pair\n')
+        return
+
+    # if A is not None:  # A is the correction matrix
+    #     np.savetxt(os.path.join(out_dir, 'pointing.txt'), A, fmt='%6.3f')
+    if m is not None:  # m is the list of sift matches
+        np.savetxt(os.path.join(out_dir, 'sift_matches.txt'), m, fmt='%9.3f')
+        np.savetxt(os.path.join(out_dir, 'center_keypts_sec.txt'),
+                   np.mean(m[:, 2:], 0), fmt='%9.3f')
+        if cfg['debug']:
+            visualisation.plot_matches(img1, img2, rpc1, rpc2, m, x, y, w, h,
+                                       os.path.join(out_dir,
+                                                    'sift_matches_pointing.png'))
+def pointing_correction_with_neighbors(tile,i):
+    """
+    Compute the translation that corrects the pointing error on a pair of tiles using the matches of the current tile and the neighbors
+
+    Args:
+        tile: dictionary containing the information needed to process the tile
+        i: index of the processed pair
+    """
+    x, y, w, h = tile['coordinates']
+    out_dir = os.path.join(tile['dir'], 'pair_{}'.format(i))
+    img1 = cfg['images'][0]['img']
+    rpc1 = cfg['images'][0]['rpc']
+    img2 = cfg['images'][i]['img']
+    rpc2 = cfg['images'][i]['rpc']
+
+    if cfg['skip_existing'] and os.path.isfile(os.path.join(out_dir,
+                                                            'pointing.txt')):
+        print('pointing correction done on tile {} {} pair {}'.format(x, y, i))
+        return
+
+    # correct pointing error
+    print('correcting pointing on tile {} {} pair {}...'.format(x, y, i))
+    try:
+        A, m = pointing_accuracy.compute_correction_with_neighbors(img1, rpc1, img2, rpc2, tile,i)
+    except common.RunFailure as e:
+        stderr = os.path.join(out_dir, 'stderr.log')
+        with open(stderr, 'w') as f:
+            f.write('ERROR during pointing correction with cmd: %s\n' % e[0]['command'])
+            f.write('Stop processing this pair\n')
+        return
+
+    if A is not None:  # A is the correction matrix
+        np.savetxt(os.path.join(out_dir, 'pointing.txt'), A, fmt='%6.3f')
+    # if m is not None:  # m is the list of sift matches
+    #     np.savetxt(os.path.join(out_dir, 'sift_matches.txt'), m, fmt='%9.3f')
+    #     np.savetxt(os.path.join(out_dir, 'center_keypts_sec.txt'),
+    #                np.mean(m[:, 2:], 0), fmt='%9.3f')
+        if cfg['debug']:
+            visualisation.plot_matches(img1, img2, rpc1, rpc2, m, x, y, w, h,
+                                       os.path.join(out_dir,
+                                                    'sift_matches_pointing.png'))
+def pointing_correction_for_failling_tiles(tile,i):
+    """
+    compute approximate solutions of poisson or Laplace equations for the translations  
+    """
+    x, y, w, h = tile['coordinates']
+    out_dir = os.path.join(tile['dir'], 'pair_{}'.format(i))
+    if (not(os.path.isfile(os.path.join(out_dir,'pointing.txt')))):
+        path_to_config_file=os.path.join(cfg['out_dir'],tile['json'])
+        interpolated_translations=translation_manipulation.get_interpolated_translations(cfg['out_dir'])
+        print('computing correction pointing by interpolation on tile {} {} pair {}...'.format(x, y, i))
+        try:
+            A=translation_manipulation.get_translation_for_failling_tile(path_to_config_file,interpolated_translations)
+        except common.RunFailure as e:
+            stderr = os.path.join(out_dir, 'stderr.log')
+            with open(stderr, 'w') as f:
+                f.write('ERROR during computation of pointing correction by interpolation with cmd: %s\n' % e[0]['command'])
+                f.write('Stop processing this pair\n')    
+            return
+        if A is not None:  # A is the correction matrix
+            np.savetxt(os.path.join(out_dir, 'pointing.txt'), A, fmt='%6.3f')
 
 def pointing_correction(tile, i):
     """
@@ -166,12 +283,13 @@ def rectification_pair(tile, i):
                     m = np.concatenate((m, m_n))
             except IOError:
                 print('%s does not exist' % sift_from_neighborhood)
-
+   # if (m.size==0):
+   #     m=None
     rect1 = os.path.join(out_dir, 'rectified_ref.tif')
     rect2 = os.path.join(out_dir, 'rectified_sec.tif')
     H1, H2, disp_min, disp_max = rectification.rectify_pair(img1, img2, rpc1,
                                                             rpc2, x, y, w, h,
-                                                            rect1, rect2, A, m,
+                                                            rect1, rect2, A, sift_matches=m,
                                                             hmargin=cfg['horizontal_margin'],
                                                             vmargin=cfg['vertical_margin'])
     np.savetxt(os.path.join(out_dir, 'H_ref.txt'), H1, fmt='%12.6f')
@@ -707,8 +825,15 @@ def main(user_cfg, steps=ALL_STEPS):
     cfg['omp_num_threads'] = max(1, int(nb_workers / len(tiles_pairs)))
 
     if 'local-pointing' in steps:
+        # parallel.launch_calls(pointing_correction, tiles_pairs, nb_workers)
+        print('computing sift matches locally...')
+        parallel.launch_calls(sift_computation, tiles_pairs, nb_workers)
         print('correcting pointing locally...')
-        parallel.launch_calls(pointing_correction, tiles_pairs, nb_workers)
+        parallel.launch_calls(pointing_correction_with_neighbors, tiles_pairs, nb_workers)
+        print('interpolation translations ...')
+        interpolated_translations=translation_manipulation.compute_interpolated_translation(cfg['out_dir'])
+        print('compute pointing correction for failling tiles ...')
+        parallel.launch_calls(pointing_correction_for_failling_tiles,tiles_pairs, nb_workers)
 
     if 'global-pointing' in steps:
         print('correcting pointing globally...')
@@ -802,6 +927,20 @@ def read_config_file(config_file):
 
     # output paths
     if not os.path.isabs(user_cfg['out_dir']):
+# <<<<<<< HEAD
+#         print('WARNING: Output directory is a relative path, it will be interpreted with respect to config.json location, and not cwd')
+#         user_cfg['out_dir'] = make_path_relative_to_json_file(user_cfg['out_dir'],config_file)
+#         print('Output directory will be: '+user_cfg['out_dir'])
+
+#     for i in range(0,len(user_cfg['images'])):
+#         for d in ['clr','cld','roi','wat','img','rpc']:
+#             if d in user_cfg['images'][i] and user_cfg['images'][i][d] is not None and not os.path.isabs(user_cfg['images'][i][d]):
+#                 user_cfg['images'][i][d]=make_path_relative_to_json_file(user_cfg['images'][i][d],config_file)
+#     # load the mola points if the config file claims it  
+#     if (user_cfg['disable_mola'] ==False):
+#         user_cfg['mola_dir'] = make_path_relative_to_json_file(user_cfg['mola_dir'],config_file)
+#         rpc_utils.load_mola_DEM(user_cfg['mola_dir']) 
+# =======
         print('WARNING: out_dir is a relative path. It is interpreted with '
               'respect to {} location (not cwd)'.format(config_file))
         user_cfg['out_dir'] = make_path_relative_to_file(user_cfg['out_dir'],
@@ -813,7 +952,12 @@ def read_config_file(config_file):
         for d in ['img', 'rpc', 'clr', 'cld', 'roi', 'wat']:
             if d in img and img[d] is not None and not os.path.isabs(img[d]):
                 img[d] = make_path_relative_to_file(img[d], config_file)
+    # load the mola points if the config file claims it  
+    if (user_cfg['disable_mola'] ==False):
+        user_cfg['mola_dir'] = make_path_relative_to_file(user_cfg['mola_dir'],config_file)
+        rpc_utils.load_mola_DEM(user_cfg['mola_dir']) 
 
+# >>>>>>> 2b88ae26bd3954486e0ef38f24a48e884a749b9b
     return user_cfg
 
 

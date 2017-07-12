@@ -7,6 +7,7 @@ from __future__ import print_function
 import bs4
 import utm
 import datetime
+import sys
 import numpy as np
 
 from s2plib import estimation
@@ -14,6 +15,10 @@ from s2plib import geographiclib
 from s2plib import common
 from s2plib import rpc_model
 from s2plib.config import cfg
+
+import read_mola
+mola_points=[] # a list that will contains the mola points
+mola_DEM=[] # an object that will containes the DEM, the upperleft point of the dem expressed in longitude, latitude coordinates, and the resolution of the DEM in this form array,[long_min,lat_min,long_res,lat_res]
 
 def print_distance_between_vectors(u, v, msg):
     """
@@ -450,8 +455,45 @@ def ground_control_points(rpc, x, y, w, h, m, M, n):
     col, row, alt = generate_point_mesh(col_range, row_range, alt_range)
     return rpc.direct_estimate(col, row, alt)
 
+def compute_new_elevations(rpc1,x,y,w,h,m,M,DEM,long_min_DEM,lat_min_DEM,long_res_DEM,lat_res_DEM,zoneExtension,elevationMolaError):
+    """
+    Compute an altitude range using MOLA data for an roi of an image 
+    Args:
+        rpc1: an instance of the rpc_model.RPCModel class for the first view
+        
+        x,y,w,h: four integers defining a rectangular region of interest
+            (ROI) in the first view. (x, y) is the top-left corner, and (w, h)
+            are the dimensions of the rectangle.
+       
+       m, M: are two float, respectively the minimal and maximal elevation for which the RPC function are computed,
+       
+       DEM is the an numpy.darray containinf the dem of MOLA in the form of an image
+       
 
-def corresponding_roi(rpc1, rpc2, x, y, w, h):
+       long_min_DEM,lat_min_DEM,long_res_DEM,lat_res_DEM: four floats, they are respectivly the longitude of the corner point in MOLA, the latitude of the corner point in MOLA, the resolution along the longitudes of the MOLA DEM, the resolution of the latitude along the latitudes of the MOLA DEM. 
+
+       zoneExtension is the  extension we add to the projected tile of the first image, on the ground in order to get more points of the mola's dem. It's a float
+       
+       elevationMolaError is an estimation of the error between the extremal point of MOLA and the real point of the tile of interest.It's a float
+    Returns:
+       two floats corresponding to a reduced range of heights to be used in order to compute the corresponding ROI, the first one is the minimal height and the second one is the maximal height
+       """
+    a = np.array([x, x,   x,   x, x+w, x+w, x+w, x+w])
+    b = np.array([y, y, y+h, y+h,   y,   y, y+h, y+h])
+    c = np.array([m, M,   m,   M,   m,   M,   m,   M])
+
+    t1,t2,t3=rpc1.direct_estimate(a,b,c)
+    long_min=min(t1);long_max=max(t1);lat_min=min(t2);lat_max=max(t2)
+    long_max=float(long_max);long_min=float(long_min);lat_max=float(lat_max);lat_min=float(lat_min)
+  
+    # DEM=mola_DEM[0]
+    # long_min_DEM,lat_min_DEM,long_res_DEM,lat_res_DEM= mola_DEM[1]
+    [min_elevation,max_elevation]=read_mola.heights_of_mola_from_DEM(DEM,long_min_DEM,lat_min_DEM,long_res_DEM,lat_res_DEM,long_min-zoneExtension,long_max+zoneExtension,lat_min-zoneExtension,lat_max+zoneExtension)
+    min_elevation-=elevationMolaError
+    max_elevation+=elevationMolaError
+    return min_elevation,max_elevation
+
+def corresponding_roi(rpc1, rpc2, x, y, w, h):#,zone_extension=0.0002699368311325688,mola_elevation=10): # zoneExtension=0.0002699368311325688 for Error RPC 0.035mRad
     """
     Uses RPC functions to determine the region of im2 associated to the
     specified ROI of im1.
@@ -474,7 +516,18 @@ def corresponding_roi(rpc1, rpc2, x, y, w, h):
     if not isinstance(rpc2, rpc_model.RPCModel):
         rpc2 = rpc_model.RPCModel(rpc2)
     m, M = altitude_range(rpc1, x, y, w, h, 0, 0)
-
+    
+    # return a refined range of altitude
+    if (cfg["disable_mola"]==False):
+        # m, M e= compute_new_elevations(rpc1,x,y,w,h,m, M,*molaPoints)
+        DEM=mola_DEM[0]
+        long_min_DEM,lat_min_DEM,long_res_DEM,lat_res_DEM= mola_DEM[1]
+        zone_extension=cfg["latitude_longitude_attitude_MAX_error"]
+        mola_elevation=cfg["elevation_mola_error"]
+        #return(type(zone_extension))
+        [min_elevation,max_elevation]=compute_new_elevations(rpc1,x,y,w,h,m,M,DEM,long_min_DEM,lat_min_DEM,long_res_DEM,lat_res_DEM,zone_extension,mola_elevation)
+        m=max(m,min_elevation)
+        M=min(M,max_elevation)
     # build an array with vertices of the 3D ROI, obtained as {2D ROI} x [m, M]
     a = np.array([x, x,   x,   x, x+w, x+w, x+w, x+w])
     b = np.array([y, y, y+h, y+h,   y,   y, y+h, y+h])
@@ -669,6 +722,7 @@ def crop_corresponding_areas(out_dir, images, roi, zoom=1):
         roi: dictionary containing the ROI definition
         zoom: integer zoom out factor
     """
+    
     rpc_ref = images[0]['rpc']
     for i, image in enumerate(images[1:]):
         x, y, w, h = corresponding_roi(rpc_ref, image['rpc'], roi['x'],
@@ -680,3 +734,13 @@ def crop_corresponding_areas(out_dir, images, roi, zoom=1):
             # before the zoom out the image may be that big
             tmp = common.image_crop_gdal(image['img'], x, y, w, h)
             common.image_zoom_gdal(tmp, zoom, '%s/roi_sec_%d.tif' % (out_dir, i), w, h)
+
+# def load_mola_points(directoryOfMolaPoints):
+
+#     global mola_points
+#     mola_points=readMolaPoints.read3DPointCloudOfMOLAFromCSV(directoryOfMolaPoints) 
+#     mola_points=readMolaPoints.convert3DPointOFMolaForProcessing(mola_points)
+def load_mola_DEM(directoryOfMolaDEM):
+
+    global mola_DEM
+    mola_DEM=read_mola.read_mola_DEM(directoryOfMolaDEM)

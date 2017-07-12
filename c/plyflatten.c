@@ -10,6 +10,38 @@
 #include "lists.c"
 #include "fail.c"
 #include "xmalloc.c"
+#define PI   3.141592653589793238
+
+// convert string like '28N' into a number like 32628, according to:
+// WGS84 / UTM northern hemisphere: 326zz where zz is UTM zone number
+// WGS84 / UTM southern hemisphere: 327zz where zz is UTM zone number
+// http://www.remotesensing.org/geotiff/spec/geotiff6.html#6.3.3.1
+static int get_utm_zone_index_for_geotiff(char *utm_zone)
+{
+	int out = 32000;
+	if (utm_zone[2] == 'N')
+		out += 600;
+	else if (utm_zone[2] == 'S')
+		out += 700;
+	else
+		fprintf(stderr, "error: bad utm zone value: %s\n", utm_zone);
+	utm_zone[2] = '\0';
+	out += atoi(utm_zone);
+	return out;
+}
+
+// apply equirectangularProjection to the clouds point around a central latitude and central longitude
+
+double equirectangularProjectionLongitude(double lont, double centralLont, double centralLat)
+{
+     double nonDistortedLongitude=(lont-centralLont)*cos(centralLat/180*PI)+centralLont;
+     return nonDistortedLongitude;
+}
+// double equirectangularProjectionLatitude(double lat, double centralLont, double centralLat)
+// {
+// 	return lat-centralLat;
+// }
+
 
 #define USE_GDAL // TODO: add an alternative interface (e.g. geotiff)
 
@@ -367,6 +399,11 @@ int main(int c, char *v[])
 	}
 	fprintf(stderr, "xmin: %lf, xmax: %lf, ymin: %lf, ymax: %lf\n", xmin, xmax, ymin, ymax);
 	fprintf(stderr, "xoff: %lf, yoff: %lf, xsize: %d, ysize: %d\n", xoff, yoff, xsize, ysize);
+
+	// compute the centrale longitude and latitude
+
+	double xcent=xsize/2+xoff; //central longitude 
+	double ycent=ysize/2+yoff; //central longitude
 
 	// allocate and initialize accumulator
 	struct accumulator_image x[1];
