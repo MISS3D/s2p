@@ -48,6 +48,7 @@ from s2plib import visualisation
 from s2plib import rpc_utils
 from s2plib import rpc_model
 from s2plib import sift
+import translation_manipulation
 
 def sift_computation(tile, i):
     """
@@ -142,7 +143,26 @@ def pointing_correction_with_neighbors(tile,i):
             visualisation.plot_matches(img1, img2, rpc1, rpc2, m, x, y, w, h,
                                        os.path.join(out_dir,
                                                     'sift_matches_pointing.png'))
-
+def pointing_correction_for_failling_tiles(tile,i):
+    """
+    compute approximate solutions of poisson or Laplace equations for the translations  
+    """
+    x, y, w, h = tile['coordinates']
+    out_dir = os.path.join(tile['dir'], 'pair_{}'.format(i))
+    if (not(os.path.isfile(os.path.join(out_dir,'pointing.txt')))):
+        path_to_config_file=os.path.join(cfg['out_dir'],tile['json'])
+        interpolated_translations=translation_manipulation.get_interpolated_translations(cfg['out_dir'])
+        print('computing correction pointing by interpolation on tile {} {} pair {}...'.format(x, y, i))
+        try:
+            A=translation_manipulation.get_translation_for_failling_tile(path_to_config_file,interpolated_translations)
+        except common.RunFailure as e:
+            stderr = os.path.join(out_dir, 'stderr.log')
+            with open(stderr, 'w') as f:
+                f.write('ERROR during computation of pointing correction by interpolation with cmd: %s\n' % e[0]['command'])
+                f.write('Stop processing this pair\n')    
+            return
+        if A is not None:  # A is the correction matrix
+            np.savetxt(os.path.join(out_dir, 'pointing.txt'), A, fmt='%6.3f')
 
 def pointing_correction(tile, i):
     """
@@ -263,12 +283,13 @@ def rectification_pair(tile, i):
                     m = np.concatenate((m, m_n))
             except IOError:
                 print('%s does not exist' % sift_from_neighborhood)
-
+   # if (m.size==0):
+   #     m=None
     rect1 = os.path.join(out_dir, 'rectified_ref.tif')
     rect2 = os.path.join(out_dir, 'rectified_sec.tif')
     H1, H2, disp_min, disp_max = rectification.rectify_pair(img1, img2, rpc1,
                                                             rpc2, x, y, w, h,
-                                                            rect1, rect2, A, m,
+                                                            rect1, rect2, A, sift_matches=m,
                                                             hmargin=cfg['horizontal_margin'],
                                                             vmargin=cfg['vertical_margin'])
     np.savetxt(os.path.join(out_dir, 'H_ref.txt'), H1, fmt='%12.6f')
@@ -831,6 +852,11 @@ def main(user_cfg, steps=ALL_STEPS):
         parallel.launch_calls(sift_computation, tiles_pairs, nb_workers)
         print('correcting pointing locally...')
         parallel.launch_calls(pointing_correction_with_neighbors, tiles_pairs, nb_workers)
+        print('interpolation translations ...')
+        interpolated_translations=translation_manipulation.compute_interpolated_translation(cfg['out_dir'])
+        print('compute pointing correction for failling tiles ...')
+        parallel.launch_calls(pointing_correction_for_failling_tiles,tiles_pairs, nb_workers)
+
     if 'global-pointing' in steps:
         print('correcting pointing globally...')
         global_pointing_correction(tiles)
