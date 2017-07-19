@@ -187,6 +187,27 @@ def end2end(config,ref_dsm,absmean_tol=0.025,percentile_tol=1.):
 
     end2end_compare_dsm(computed,expected,absmean_tol,percentile_tol)
 
+def end2end_subsampling(config,ref_dsm,absmean_tol=0.025,percentile_tol=1.):
+
+    print('Configuration file: ',config)
+    print('Reference DSM:',ref_dsm,os.linesep)
+    
+    test_cfg = s2p.read_config_file(config)
+    test_cfg['out_dir']=test_cfg['out_dir']+"_sub4"
+    test_cfg['subsampling_factor'] = 4
+    test_cfg['dsm_resolution'] = test_cfg['dsm_resolution'] * 4
+    # test_cfg['triangulation_mode'] = 'geometric'
+    test_cfg['horizontal_margin'] = 4 * test_cfg['horizontal_margin']
+    test_cfg['vertical_margin'] = 4 * test_cfg['vertical_margin']
+    s2p.main(test_cfg)
+
+    outdir = test_cfg['out_dir']
+    
+    # computed = s2plib.common.gdal_read_as_array_with_nans(os.path.join(outdir,'dsm.tif'))
+    # expected = s2plib.common.gdal_read_as_array_with_nans(ref_dsm)
+
+    # end2end_compare_dsm(computed,expected,absmean_tol,percentile_tol)
+
 def end2end_cluster(config):
     print('Configuration file: ',config)
 
@@ -256,6 +277,7 @@ registered_tests = [('unit_image_keypoints', (unit_image_keypoints,[])),
                     ('unit_plyflatten', (unit_plyflatten,[])),
                     ('unit_matches_from_rpc', (unit_matches_from_rpc,[])),
                     ('end2end_pair', (end2end, ['testdata/input_pair/config.json','testdata/expected_output/pair/dsm.tif',0.025,1])),
+                    ('end2end_pair_sub4', (end2end_subsampling, ['testdata/input_pair/config.json','testdata/expected_output/pair/dsm.tif',0.025,1])),
                     ('end2end_triplet', (end2end, ['testdata/input_triplet/config.json','testdata/expected_output/triplet/dsm.tif',0.05,2])),
                     ('end2end_cluster', (end2end_cluster, ['testdata/input_triplet/config.json'])),
                     ('end2end_mosaic', (end2end_mosaic, ['testdata/input_triplet/config.json','testdata/expected_output/triplet/height_map.tif',0.05,2])),
