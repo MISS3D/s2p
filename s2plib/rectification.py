@@ -188,8 +188,8 @@ def disparity_range_from_matches(matches, H1, H2, w, h):
 
 
     # compute the final disparity range
-    disp_min = np.floor(np.min(x2 - x1))
-    disp_max = np.ceil(np.max(x2 - x1))
+    disp_min = np.floor(np.percentile(x2 - x1, 1))
+    disp_max = np.ceil(np.percentile(x2 - x1, 99))
 
     # add a security margin to the disparity range
     disp_min *= (1 - np.sign(disp_min) * cfg['disp_range_extra_margin'])
