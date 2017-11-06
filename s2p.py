@@ -649,6 +649,18 @@ def lidar_preprocessor(tiles):
     common.lidar_preprocessor(os.path.join(cfg['out_dir'],
                                            'cloud.lidar_viewer'), plys)
 
+def produce_potree(tiles):
+    """
+    Produce a single multiscale point cloud for the whole processed region.
+
+    Args:
+        tiles: list of tiles dictionaries
+    """
+    #if common.which('LidarPreprocessor') is None:
+    #    return
+    plys = [os.path.join(os.path.abspath(t['dir']), 'cloud.ply') for t in tiles]
+    common.plys_to_potree(os.path.join(cfg['out_dir'],
+                                           'cloud.potree'), plys)
 
 # ALL_STEPS is a ordonned dictionary : key = 'stepname' : value = is_distributed (True/False)
 # initialization : pass in a sequence of tuples
@@ -763,6 +775,11 @@ def main(user_cfg, steps=ALL_STEPS):
             common.print_elapsed_time()
         else:
             print("LidarPreprocessor explicitly disabled in config.json")
+
+    # always try to produce the potree visualization it cannot fail :)
+    if True:
+       produce_potree(tiles)
+       common.print_elapsed_time()
 
     # cleanup
     common.garbage_cleanup()
