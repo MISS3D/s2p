@@ -792,6 +792,56 @@ def lidar_preprocessor(output, input_plys):
                                                                            output))
 
 
+def plys_to_potree(output, input_plys):
+    """
+    Compute a multi-scale representation of a large point cloud.
+
+    The output file can be viewed with a web browser. This is useful for
+    huge point clouds. The input is a list of ply files.
+
+    If PotreeConverter is not available it doesn't fail.
+
+    Args:
+        output: path to the output folder
+        input_plys: list of paths to ply files
+    """
+    import os.path
+    if (not os.path.exists(bin_dir+'/ply2ascii')) or (not os.path.exists(bin_dir+'/txt2las')) or (not os.path.exists(bin_dir+'/PotreeConverter')) :
+        return  
+
+    tmp = os.path.expandvars(cfg['temporary_dir'])
+    nthreads = multiprocessing.cpu_count()
+    plys = ' '.join(input_plys)
+
+    las = []
+    trash = []
+
+    for p in input_plys:
+        # make ascii ply if needed
+        ap = p.replace('.ply', 'a.ply')
+        lp = p.replace('.ply', '.las')
+        las.append(lp)
+        trash.append(ap)
+        trash.append(lp)
+        run("ply2ascii < %s > %s" % (p, ap)) 
+        # convert ply to las because PotreeConverter is not able to read PLY
+        run("txt2las -parse xyzRGB -verbose -i  %s -o %s 2>/dev/null" % (ap, lp)) 
+
+    # generate potree output
+    listfile = tmp+'/potree-listfile.txt' 
+    ff = open(listfile, 'w')
+    for item in las:
+        ff.write("%s\n" % item)
+    ff.close()
+
+    run("mkdir -p %s" % output)
+    resourcedir = bin_dir + '/resources/page_template'
+    run("LC_ALL=C PotreeConverter --list-of-files %s -o %s -p cloud --edl-enabled --material ELEVATION --overwrite --page-template %s" % (listfile, output, resourcedir) )
+
+    # clean intermediate files
+    for p in trash:
+        run("rm %s"%p)
+
 def cargarse_basura(inputf, outputf):
     se=5
     tmp1 = outputf + '1.tif'
