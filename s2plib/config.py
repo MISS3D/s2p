@@ -62,6 +62,11 @@ cfg['dsm_sigma'] = None
 # sift threshold on the first over second best match ratio
 cfg['sift_match_thresh'] = 0.6
 
+# threshold in order to remove sift disparity outliers
+# np.percentile(sift_disparity_outlier_threshold) as min and np.percentile(100-sift_disparity_outlier_threshold) as max
+# 0 by default so np.percentile(0) is equivalent to np.min() and np.percentile(100) is equivalent to np.max()
+cfg['sift_disparity_outlier_threshold'] = 0
+
 # disp range expansion facto
 cfg['disp_range_extra_margin'] = 0.2
 
