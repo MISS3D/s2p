@@ -67,8 +67,11 @@ class ImageRPCModifier():
                 return(0)
 
     def scale_image_and_rpc(self, image_in, rpc_in, write_folder, scaling_filter, scale_x, scale_y=None):
-        if not scale_y:
+        scale_x = float(scale_x)
+        if scale_y is None:
             scale_y = scale_x
+        else:
+            scale_y = float(scale_y)
         assert scaling_filter in self.available_filters
 
         self.scale_image(image_in, write_folder, scaling_filter, scale_x, scale_y)
@@ -80,8 +83,10 @@ class ImageRPCModifier():
 
     def scale_image(self, image_in, write_folder, scaling_filter, scale_x, scale_y):
 
+        image_out = self._get_output_name(write_folder, image_in, False)
+
         # generate image
-        print("Generating {} ...".format(image_in))
+        print("Generating {} ...".format(image_out))
 
         # First get input image size
         w, h, _ = common.image_size_gdal(image_in)
@@ -92,7 +97,6 @@ class ImageRPCModifier():
 
         os.close(fd)
 
-        image_out = self._get_output_name(write_folder, image_in, False)
 
         common.run('gdal_translate -of VRT -a_ullr 0 0 {} {} {} {}'.format(w, h, image_in, tmp_vrt))
 
@@ -116,8 +120,6 @@ class ImageRPCModifier():
 
     def scale_rpc(self, rpc_in, scale_x, scale_y):
 
-        # generate rpc file
-        print("Generating {} ...".format(rpc_in))
 
         r = rpc_model.RPCModel(rpc_in)
         r.linScale /= scale_y
@@ -148,10 +150,9 @@ class ImageRPCModifier():
 
         x_min, y_min, width, height = crop
 
-        # generate image
-        print("Generating {} ...".format(image_in))
-
         image_out = self._get_output_name(write_folder, image_in)
+        # generate image
+        print("Croping to image {} ...".format(image_out))
 
         common.run('gdal_translate -srcwin {} {} {} {} {} {}'.format(x_min, y_min, width, height, image_in, image_out))
 
@@ -166,7 +167,7 @@ class ImageRPCModifier():
         x_min, y_min, width, height = crop
 
         # generate rpc file
-        print("Generating {} ...".format(rpc_in))
+        print("croping rpc {} ...".format(rpc_in))
 
         r = rpc_model.RPCModel(rpc_in)
 
@@ -186,20 +187,17 @@ class ImageRPCModifier():
         return new_file_name
 
 
-    def _verify_rpc_model_scaled(self, rpc_1, rpc_2):
+    def _verify_rpc_model_scaled(self, rpc_1, rpc_2, scale_x, scale_y):
         #sanity check of model
+        lon_gt, lat_gt, alt_gt = rpc_1.direct_estimate(scale_x*5000, scale_y*10000, 0)
+        lon, lat, alt = rpc_2.direct_estimate(5000, 10000, 0)
 
-        rpc_model_before_scaling = rpc_model.RPCModel(rpc_1)
-        rpc_model_after_scaling = rpc_model.RPCModel(rpc_2)
+        print(abs(lon_gt - lon), abs(lat_gt - lat), abs(alt_gt - alt))
+        assert abs(lon_gt - lon) < 10**(-8)
+        assert abs(lat_gt - lat) < 10**(-8)
+        assert abs(alt_gt - alt) < 10**(-8)
 
-        w, h, _ = common.image_size_gdal(image_in)
-
-        lon_gt, lat_gt, alt_gt = rpc_model_before_scaling.direct_estimate(w/3., h/5., 0)
-        lon, lat, alt = rpc_model_after_scaling.direct_estimate(w/3., h/5., 0)
-
-        assert abs(lon_gt - lon) < 10**(-10)
-        assert abs(lat_gt - lat) < 10**(-10)
-        assert abs(alt_gt - alt) < 10**(-10)
+        print("models match")
 
         return(0)
 
@@ -214,9 +212,9 @@ class ImageRPCModifier():
         lon_gt, lat_gt, alt_gt = rpc_model_before_scaling.direct_estimate(200, 300, 0)
         lon, lat, alt = rpc_model_after_croping.direct_estimate(200 + offset_w, 300 + offset_h, 0)
 
-        assert abs(lon_gt - lon) < 10**(-10)
-        assert abs(lat_gt - lat) < 10**(-10)
-        assert abs(alt_gt - alt) < 10**(-10)
+        assert abs(lon_gt - lon) < 10**(-8)
+        assert abs(lat_gt - lat) < 10**(-8)
+        assert abs(alt_gt - alt) < 10**(-8)
 
         return(0)
 
