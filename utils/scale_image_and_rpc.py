@@ -36,6 +36,9 @@ class ImageRPCModifier():
             print("Neither crop nor scaling filter was provided, nothing was done")
             return(0)
 
+        if not os.path.exists(write_folder):
+            os.makedirs(write_folder)
+
         if crop and not scaling_filter:
             print("Only croping.")
             self.crop_image_and_rpc(image_in, rpc_in, write_folder, crop)
