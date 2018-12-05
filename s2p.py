@@ -300,7 +300,10 @@ def disparity_to_ply(tile):
     H_ref = os.path.join(out_dir, 'pair_1', 'H_ref.txt')
     H_sec = os.path.join(out_dir, 'pair_1', 'H_sec.txt')
     pointing = os.path.join(cfg['out_dir'], 'global_pointing_pair_1.txt')
-    disp = os.path.join(out_dir, 'pair_1', 'rectified_disp.tif')
+    disp  = os.path.join(out_dir, 'pair_1', 'rectified_disp.tif')
+    extra = os.path.join(out_dir, 'pair_1', 'rectified_disp_confidence.tif')
+    if not os.path.exists(extra):
+        extra = ''
     mask_rect = os.path.join(out_dir, 'pair_1', 'rectified_mask.png')
     mask_orig = os.path.join(out_dir, 'cloud_water_image_domain_mask.png')
 
@@ -320,7 +323,7 @@ def disparity_to_ply(tile):
 
     # compute the point cloud
     triangulation.disp_map_to_point_cloud(ply_file, disp, mask_rect, rpc1, rpc2,
-                                          H_ref, H_sec, pointing, colors,
+                                          H_ref, H_sec, pointing, colors, extra,
                                           utm_zone=cfg['utm_zone'],
                                           llbbx=tuple(cfg['ll_bbx']),
                                           xybbx=(x, x+w, y, y+h),
@@ -555,7 +558,8 @@ def heights_to_ply(tile):
 def plys_to_dsm(tile):
     """
     """
-    out_dsm = os.path.join(tile['dir'], 'dsm.tif')
+    out_dsm  = os.path.join(tile['dir'], 'dsm.tif')
+    out_conf = os.path.join(tile['dir'], 'confidence.tif')
 
     res = cfg['dsm_resolution']
     if 'utm_bbx' in cfg:
@@ -598,6 +602,28 @@ def plys_to_dsm(tile):
         raise common.RunFailure({"command": run_cmd, "environment": os.environ,
                                  "output": q})
 
+    # export confidence (optional) 
+    # call to plyflatten might fail, but it won't abort the process
+    # or affect the following steps
+    cmd = ['plyflatten', str(cfg['dsm_resolution']), out_conf]
+    cmd += ['-srcwin', '{} {} {} {}'.format(local_xoff, local_yoff,
+                                            local_xsize, local_ysize)]
+
+    cmd += ['-radius', str(cfg['dsm_radius'])]
+    cmd += ['-c', str(6) ]
+
+    if cfg['dsm_sigma'] is not None:
+        cmd += ['-sigma', str(cfg['dsm_sigma'])]
+
+    p = subprocess.Popen(cmd, stdin=subprocess.PIPE)
+    q = p.communicate(input=clouds.encode())
+
+    run_cmd = "ls %s | %s" % (clouds.replace('\n', ' '), " ".join(cmd))
+    print ("\nRUN: %s" % run_cmd)
+
+    if p.returncode != 0:
+        raise common.RunFailure({"command": run_cmd, "environment": os.environ,
+                                 "output": q})
     # ls files | ./bin/plyflatten [-c column] [-srcwin "xoff yoff xsize ysize"] resolution out.tif
 
 
@@ -636,6 +662,28 @@ def global_dsm(tiles):
                          "-co TILED=YES -co BIGTIFF=IF_SAFER",
                          "%s %s %s" % (projwin, out_dsm_vrt, out_dsm_tif)]))
 
+    # EXPORT CONFIDENCE
+    out_conf_vrt = os.path.join(cfg['out_dir'], 'confidence.vrt')
+    out_conf_tif = os.path.join(cfg['out_dir'], 'confidence.tif')
+
+    dsms_list = [os.path.join(t['dir'], 'confidence.tif') for t in tiles]
+    dems_list_ok = [d for d in dsms_list if os.path.exists(d)]
+    dsms = '\n'.join(dems_list_ok)
+
+    input_file_list = os.path.join(cfg['out_dir'], 'gdalbuildvrt_input_file_list2.txt')
+
+    if len(dems_list_ok) > 0:
+    
+        with open(input_file_list, 'w') as f:
+            f.write(dsms)
+    
+        common.run("gdalbuildvrt -vrtnodata nan -input_file_list %s %s" % (input_file_list,
+                                                                           out_conf_vrt))
+    
+        common.run(" ".join(["gdal_translate",
+                             "-co TILED=YES -co BIGTIFF=IF_SAFER",
+                             "%s %s %s" % (projwin, out_conf_vrt, out_conf_tif)]))
+
 
 # ALL_STEPS is a ordonned dictionary : key = 'stepname' : value = is_distributed (True/False)
 # initialization : pass in a sequence of tuples
@@ -669,9 +717,8 @@ def main(user_cfg, steps=ALL_STEPS):
 
     # multiprocessing setup
     nb_workers = multiprocessing.cpu_count()  # nb of available cores
-    if cfg['max_processes']:
-        nb_workers = min(nb_workers, cfg['max_processes'])
-    cfg['max_processes'] = nb_workers
+    if cfg['max_processes'] is not None:
+        nb_workers = cfg['max_processes']
 
     tw, th = initialization.adjust_tile_size()
     tiles_txt = os.path.join(cfg['out_dir'],'tiles.txt')
@@ -686,9 +733,6 @@ def main(user_cfg, steps=ALL_STEPS):
 
     n = len(cfg['images'])
     tiles_pairs = [(t, i) for i in range(1, n) for t in tiles]
-
-    # omp_num_threads should not exceed nb_workers when multiplied by len(tiles)
-    cfg['omp_num_threads'] = max(1, int(nb_workers / len(tiles_pairs)))
 
     if 'local-pointing' in steps:
         print('correcting pointing locally...')
