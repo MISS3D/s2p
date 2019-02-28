@@ -41,6 +41,7 @@ from s2plib import initialization
 from s2plib import pointing_accuracy
 from s2plib import rectification
 from s2plib import block_matching
+from s2plib import stereo_matching
 from s2plib import masking
 from s2plib import triangulation
 from s2plib import fusion
@@ -214,6 +215,8 @@ def stereo_matching(tile,i):
     mask = os.path.join(out_dir, 'rectified_mask.png')
     disp_min, disp_max = np.loadtxt(os.path.join(out_dir, 'disp_min_max.txt'))
 
+    stereo_matcher = stereo_matching.StereoMatching(cfg['matching_algorithm'])
+    stereo_matcher.desc()
     block_matching.compute_disparity_map(rect1, rect2, disp, mask,
                                          cfg['matching_algorithm'], disp_min,
                                          disp_max)
@@ -540,7 +543,7 @@ def heights_to_ply(tile):
     else:
         common.image_qauto(common.image_crop_gdal(cfg['images'][0]['img'], x, y,
                                                  w, h), colors)
-        
+
     triangulation.height_map_to_point_cloud(plyfile, height_map,
                                             cfg['images'][0]['rpc'], H, colors,
                                             utm_zone=cfg['utm_zone'],
@@ -602,7 +605,7 @@ def plys_to_dsm(tile):
         raise common.RunFailure({"command": run_cmd, "environment": os.environ,
                                  "output": q})
 
-    # export confidence (optional) 
+    # export confidence (optional)
     # call to plyflatten might fail, but it won't abort the process
     # or affect the following steps
     cmd = ['plyflatten', str(cfg['dsm_resolution']), out_conf]
@@ -673,13 +676,13 @@ def global_dsm(tiles):
     input_file_list = os.path.join(cfg['out_dir'], 'gdalbuildvrt_input_file_list2.txt')
 
     if len(dems_list_ok) > 0:
-    
+
         with open(input_file_list, 'w') as f:
             f.write(dsms)
-    
+
         common.run("gdalbuildvrt -vrtnodata nan -input_file_list %s %s" % (input_file_list,
                                                                            out_conf_vrt))
-    
+
         common.run(" ".join(["gdal_translate",
                              "-co TILED=YES -co BIGTIFF=IF_SAFER",
                              "%s %s %s" % (projwin, out_conf_vrt, out_conf_tif)]))
