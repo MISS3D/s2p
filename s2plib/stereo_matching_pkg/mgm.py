@@ -1,7 +1,7 @@
-from s2plib.stereo_matching import StereoMatching
+from . import stereo_matching
 
 
-class mgmMatching(StereoMatching):
+class mgmMatching(stereo_matching.StereoMatching):
 
     def desc(self):
         print('mgmMatching class')

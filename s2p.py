@@ -41,7 +41,7 @@ from s2plib import initialization
 from s2plib import pointing_accuracy
 from s2plib import rectification
 from s2plib import block_matching
-from s2plib import stereo_matching
+from s2plib.stereo_matching_pkg import stereo_matching as st
 from s2plib import masking
 from s2plib import triangulation
 from s2plib import fusion
@@ -215,7 +215,7 @@ def stereo_matching(tile,i):
     mask = os.path.join(out_dir, 'rectified_mask.png')
     disp_min, disp_max = np.loadtxt(os.path.join(out_dir, 'disp_min_max.txt'))
 
-    stereo_matcher = stereo_matching.StereoMatching(cfg['matching_algorithm'])
+    stereo_matcher = st.StereoMatching(cfg['matching_algorithm'])
     stereo_matcher.desc()
     block_matching.compute_disparity_map(rect1, rect2, disp, mask,
                                          cfg['matching_algorithm'], disp_min,
