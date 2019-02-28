@@ -1,3 +1,5 @@
+import os
+import s2plib.common as common
 from . import stereo_matching
 
 
@@ -5,3 +7,30 @@ class msmwMatching(stereo_matching.StereoMatching):
 
     def desc(self):
         print('msmwMatching class')
+
+    def rectify_secondary_tile_only(self):
+        return False
+
+    def compute_disparity_map(self, im_ref, im_sec, out_disp_path, out_mask_path,
+                              disp_min=None, disp_max=None, **kwargs):
+        """
+        Stereo matching
+
+        :param im_ref: str, path to input ref image
+        :param im_sec: str, path to input sec image
+        :param out_disp_path: str, path to output disparity map
+        :param out_mask_path: str, path to output mask map
+        :param disp_min: float, min disp range
+        :param disp_max: float, max disp range
+        :param kwargs: optional arguments
+        :return:
+        """
+
+        # define environment variables
+        env = os.environ.copy()
+        env['OMP_NUM_THREADS'] = str(kwargs['omp_num_threads'])
+
+        bm_binary = 'msmw'
+        common.run('{0} -m {1} -M {2} -il {3} -ir {4} -dl {5} -kl {6}'.format(
+                bm_binary, disp_min, disp_max, im_ref, im_sec, out_disp_path, out_mask_path))
+
