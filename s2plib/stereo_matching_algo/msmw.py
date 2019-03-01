@@ -3,7 +3,7 @@ import s2plib.common as common
 try:
     # case when the package stereo matching lives on his own
     import stereo_matching
-except ModuleNotFoundError:
+except ImportError:
     # case when the package stereo matching is used from another package (say s2plib)
     from . import stereo_matching
 

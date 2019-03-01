@@ -2,7 +2,7 @@ import os
 import s2plib.common as common
 try:
     import stereo_matching
-except ModuleNotFoundError:
+except ImportError:
     from . import stereo_matching
 
 
