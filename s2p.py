@@ -40,8 +40,8 @@ from s2plib import parallel
 from s2plib import initialization
 from s2plib import pointing_accuracy
 from s2plib import rectification
-import s2plib.stereo_matching_pkg.stereo_matching as st
-from s2plib.stereo_matching_pkg import mgm, msmw
+import s2plib.stereo_matching_algo.stereo_matching as st
+from s2plib.stereo_matching_algo import mgm, msmw
 from s2plib import masking
 from s2plib import triangulation
 from s2plib import fusion

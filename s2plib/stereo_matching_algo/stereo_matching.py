@@ -22,10 +22,16 @@ class StereoMatching(object):
                 except KeyError:
                     raise KeyError('No stereo matching algorithm named {} supported'.format(stereo_method))
             else:
-                try:
-                    return super(StereoMatching, cls).__new__(stereo_method)
-                except:
-                    raise
+                if type(stereo_method) is unicode:
+                    try:
+                        return super(StereoMatching, cls).__new__(cls.stereo_methods_avail[stereo_method.encode('utf-8')])
+                    except KeyError:
+                        raise KeyError('No stereo matching algorithm named {} supported'.format(stereo_method))
+                else:
+                    try:
+                        return super(StereoMatching, cls).__new__(stereo_method)
+                    except:
+                        raise
         else:
             return super(StereoMatching, cls).__new__(cls)
 

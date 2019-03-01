@@ -8,7 +8,6 @@ except ModuleNotFoundError:
 
 @stereo_matching.StereoMatching.register_subclass('mgm')
 class mgmMatching(stereo_matching.StereoMatching):
-    __metaclass__ = stereo_matching.StereoMatching
 
     def desc(self):
         print('mgmMatching algorithm')

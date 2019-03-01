@@ -13,7 +13,7 @@ from s2plib import estimation
 from s2plib import evaluation
 from s2plib import common
 from s2plib import visualisation
-import s2plib.stereo_matching_pkg.mgm as mgm
+import s2plib.stereo_matching_algo.mgm as mgm
 from s2plib.config import cfg
 
 
