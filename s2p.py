@@ -40,7 +40,6 @@ from s2plib import parallel
 from s2plib import initialization
 from s2plib import pointing_accuracy
 from s2plib import rectification
-from s2plib import block_matching
 from s2plib.stereo_matching_pkg import stereo_matching as st
 from s2plib import masking
 from s2plib import triangulation
@@ -216,10 +215,14 @@ def stereo_matching(tile,i):
     disp_min, disp_max = np.loadtxt(os.path.join(out_dir, 'disp_min_max.txt'))
 
     stereo_matcher = st.StereoMatching(cfg['matching_algorithm'])
-    stereo_matcher.desc()
-    block_matching.compute_disparity_map(rect1, rect2, disp, mask,
-                                         cfg['matching_algorithm'], disp_min,
-                                         disp_max)
+    # TODO:
+    #   It might be better for cfg to have a per step|algo key somehow, then we could pass such a light cfg around as
+    #   optional positional arguments
+    #   Please also note that having keys inside cfg that are actually duplicated as positional arguments (such as
+    #   disp_min & disp_max is not safe). Maybe such keys should be remove from cfg by rectification.py, or their values
+    #   updated inside cfg by rectification.py
+    stereo_matcher.compute_disparity_map(rect1, rect2, disp, mask,
+                                         min_disp_range=disp_min, max_disp_range=disp_max, **cfg)
 
     # add margin around masked pixels
     masking.erosion(mask, mask, cfg['msk_erosion'])

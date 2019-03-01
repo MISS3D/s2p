@@ -6,13 +6,13 @@ from . import stereo_matching
 class msmwMatching(stereo_matching.StereoMatching):
 
     def desc(self):
-        print('msmwMatching class')
+        print('msmwMatching algorithm')
 
     def rectify_secondary_tile_only(self):
         return False
 
     def compute_disparity_map(self, im_ref, im_sec, out_disp_path, out_mask_path,
-                              disp_min=None, disp_max=None, **kwargs):
+                              min_disp_range=None, max_disp_range=None, **kwargs):
         """
         Stereo matching
 
@@ -26,11 +26,13 @@ class msmwMatching(stereo_matching.StereoMatching):
         :return:
         """
 
+        self._check_disp_range(im_ref, min_disp_range, max_disp_range)
+
         # define environment variables
         env = os.environ.copy()
         env['OMP_NUM_THREADS'] = str(kwargs['omp_num_threads'])
 
         bm_binary = 'msmw'
         common.run('{0} -m {1} -M {2} -il {3} -ir {4} -dl {5} -kl {6}'.format(
-                bm_binary, disp_min, disp_max, im_ref, im_sec, out_disp_path, out_mask_path))
+                bm_binary, min_disp_range, max_disp_range, im_ref, im_sec, out_disp_path, out_mask_path))
 

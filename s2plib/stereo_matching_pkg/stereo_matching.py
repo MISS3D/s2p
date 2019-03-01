@@ -14,6 +14,7 @@ this_package_path = this_file_realpath[this_file_realpath.find('s2plib'):].repla
 
 # list of supported stereo matching algotirhms
 stereo_methods_avail = {'mgm': {'module': 'mgm', 'class': 'mgmMatching'},
+                        'mgm_multi': {'module': 'mgm', 'class': 'mgm_multiMatching'},
                         'msm3': {'module': 'msmw', 'class': 'msmwMatching'}}
 
 
@@ -39,7 +40,7 @@ class StereoMatching(object):
 
     @abstractmethod
     def compute_disparity_map(self, im_ref, im_sec, out_disp_path, out_mask_path,
-                              disp_min=None, disp_max=None, **kwargs):
+                              min_disp_range=None, max_disp_range=None, **kwargs):
         """
         Stereo matching
 
@@ -47,8 +48,8 @@ class StereoMatching(object):
         :param im_sec: str, path to input sec image
         :param out_disp_path: str, path to output disparity map
         :param out_mask_path: str, path to output mask map
-        :param disp_min: float, min disp range
-        :param disp_max: float, max disp range
+        :param min_disp_range: float, min disp range
+        :param max_disp_range: float, max disp range
         :param kwargs: optional arguments
         :return:
         """
