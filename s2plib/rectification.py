@@ -13,7 +13,7 @@ from s2plib import estimation
 from s2plib import evaluation
 from s2plib import common
 from s2plib import visualisation
-import s2plib.stereo_matching_pkg.stereo_matching as st
+import s2plib.stereo_matching_pkg.mgm as mgm
 from s2plib.config import cfg
 
 
@@ -292,7 +292,7 @@ def rectification_homographies(matches, x, y, w, h):
 
 def rectify_pair(im1, im2, rpc1, rpc2, x, y, w, h, out1, out2, A=None,
                  sift_matches=None, method='rpc', hmargin=0, vmargin=0,
-                 stereo_matcher=st.StereoMatching(cfg['matching_algorithm'])):
+                 stereo_matcher=mgm.mgmMatching()):
     """
     Rectify a ROI in a pair of images.
 

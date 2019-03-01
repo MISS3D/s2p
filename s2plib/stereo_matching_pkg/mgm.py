@@ -1,9 +1,14 @@
 import os
 import s2plib.common as common
-from . import stereo_matching
+try:
+    import stereo_matching
+except ModuleNotFoundError:
+    from . import stereo_matching
 
 
+@stereo_matching.StereoMatching.register_subclass('mgm')
 class mgmMatching(stereo_matching.StereoMatching):
+    __metaclass__ = stereo_matching.StereoMatching
 
     def desc(self):
         print('mgmMatching algorithm')
@@ -50,6 +55,7 @@ class mgmMatching(stereo_matching.StereoMatching):
         common.run('plambda {0} "isfinite" -o {1}'.format(out_disp_path, out_mask_path))
 
 
+@stereo_matching.StereoMatching.register_subclass('mgm_multi')
 class mgm_multiMatching(stereo_matching.StereoMatching):
 
     def desc(self):

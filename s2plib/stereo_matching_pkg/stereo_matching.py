@@ -1,38 +1,41 @@
 #!/usr/bin/env python
 
-import importlib
-import os
 import numpy as np
 import s2plib.common as common
 from abc import ABCMeta, abstractmethod
 
 
-# link to ease circular import implied by class factory
-this_file_realpath = os.path.dirname(os.path.realpath(__file__))
-this_package_path = this_file_realpath[this_file_realpath.find('s2plib'):].replace(os.path.sep, '.')
-
-
-# list of supported stereo matching algotirhms
-stereo_methods_avail = {'mgm': {'module': 'mgm', 'class': 'mgmMatching'},
-                        'mgm_multi': {'module': 'mgm', 'class': 'mgm_multiMatching'},
-                        'msm3': {'module': 'msmw', 'class': 'msmwMatching'}}
-
-
-# Metaclass Abstract Factory
+# StereoMatching is an abstract metaclass
+#   - abstract because it was created from ABCMeta metaclass (and not type itself), and ABCMeta creates abstract classes
+#   - metaclass because we overwrite __new__, which is a constructor, and a constructor creates a class,
+#     and what creates a class is a metaclass
 class StereoMatching(object):
     __metaclass__ = ABCMeta
 
+    stereo_methods_avail = {}
+
     def __new__(cls, stereo_method='Unknown'):
         if cls is StereoMatching:
-            try:
-                stereo_method_desc = stereo_methods_avail[stereo_method]
-                stereo_module = importlib.import_module('.'.join([this_package_path, stereo_method_desc['module']]))
-                stereo_class = getattr(stereo_module, stereo_method_desc['class'])
-                return super(StereoMatching, cls).__new__(stereo_class)
-            except KeyError:
-                raise KeyError('No stereo matching algorithm named {} supported'.format(stereo_method))
+            if type(stereo_method) is str:
+                try:
+                    return super(StereoMatching, cls).__new__(cls.stereo_methods_avail[stereo_method])
+                except KeyError:
+                    raise KeyError('No stereo matching algorithm named {} supported'.format(stereo_method))
+            else:
+                try:
+                    return super(StereoMatching, cls).__new__(stereo_method)
+                except:
+                    raise
         else:
             return super(StereoMatching, cls).__new__(cls)
+
+    @classmethod
+    def register_subclass(cls, short_name):
+        def decorator(subclass):
+            cls.stereo_methods_avail[short_name] = subclass
+            return subclass
+
+        return decorator
 
     @abstractmethod
     def desc(self):
@@ -74,9 +77,9 @@ class StereoMatching(object):
 
         # limit disparity bounds
         np.alltrue(len(disp_min) == len(disp_max))
+        image_size = common.image_size_gdal(im_ref)
         for dim in range(len(disp_min)):
             if disp_min[dim] is not None and disp_max[dim] is not None:
-                image_size = common.image_size_gdal(im_ref)
                 if disp_max[dim] - disp_min[dim] > image_size[dim]:
                     center = 0.5 * (disp_min[dim] + disp_max[dim])
                     disp_min[dim] = int(center - 0.5 * image_size[dim])
@@ -96,12 +99,18 @@ class StereoMatching(object):
 
 
 if __name__ == '__main__':
-    #nothing = StereoMatching()
-    mgm = StereoMatching('mgm')
-    msmw = StereoMatching('msmw')
+    """
+    >>> import stereo_matching
+    >>> stereo_matching.StereoMatching.__subclasses__()
+    []
+    >>> import mgm
+    >>> stereo_matching.StereoMatching.__subclasses__()
+    [<class 'mgm.mgmMatching'>, <class 'mgm.mgm_multiMatching'>]
+    >>> stereo_matching.StereoMatching(mgm.mgmMatching)
+    <mgm.mgmMatching object at 0x2adca3c8feb8>
+    >>> stereo_matching.StereoMatching('mgm')
+    <mgm.mgmMatching object at 0x2adc99c78ef0>
+    >>> stereo_matching.StereoMatching.stereo_methods_avail
+    {'mgm': <class 'mgm.mgmMatching'>}
+    """
 
-    #nothing.name()
-    mgm.desc()
-    msmw.desc()
-
-    #msmw.a_method()

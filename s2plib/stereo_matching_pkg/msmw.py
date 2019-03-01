@@ -1,8 +1,14 @@
 import os
 import s2plib.common as common
-from . import stereo_matching
+try:
+    # case when the package stereo matching lives on his own
+    import stereo_matching
+except ModuleNotFoundError:
+    # case when the package stereo matching is used from another package (say s2plib)
+    from . import stereo_matching
 
 
+@stereo_matching.StereoMatching.register_subclass('msmw3')
 class msmwMatching(stereo_matching.StereoMatching):
 
     def desc(self):
