@@ -13,7 +13,7 @@ from s2plib import estimation
 from s2plib import evaluation
 from s2plib import common
 from s2plib import visualisation
-from s2plib import block_matching
+import s2plib.stereo_matching_pkg.stereo_matching as st
 from s2plib.config import cfg
 
 
@@ -190,7 +190,7 @@ def disparity_range(rpc1, rpc2, x, y, w, h, H1, H2, matches, A=None):
     exogenous_disp = None
     sift_disp = None
     alt_disp  = None
-    
+
     # Compute exogenous disparity range if needed
     if (cfg['disp_range_method'] in ['exogenous', 'wider_sift_exogenous']):
         exogenous_disp = rpc_utils.exogenous_disp_range_estimation(rpc1, rpc2, x, y, w, h,
@@ -199,7 +199,7 @@ def disparity_range(rpc1, rpc2, x, y, w, h, H1, H2, matches, A=None):
                                                               cfg['disp_range_exogenous_low_margin'])
 
         print("exogenous disparity range: [%f, %f]" % (exogenous_disp[0], exogenous_disp[1]))
-        
+
     # Compute SIFT disparity range if needed
     if (cfg['disp_range_method'] in ['sift', 'wider_sift_exogenous']):
         if matches is not None and len(matches)>=2:
@@ -217,7 +217,7 @@ def disparity_range(rpc1, rpc2, x, y, w, h, H1, H2, matches, A=None):
                                                               x, y, w, h,
                                                               H1, H2, A)
             print("Altitude fixed disparity range: [%f, %f]" % (alt_disp[0], alt_disp[1]))
-            
+
     # Now, compute disparity range according to selected method
     if cfg['disp_range_method'] == 'exogenous':
         if exogenous_disp is not None:
@@ -235,7 +235,7 @@ def disparity_range(rpc1, rpc2, x, y, w, h, H1, H2, matches, A=None):
                 disp = sift_disp
             else:
                 disp = exogenous_disp
-        
+
     elif cfg['disp_range_method'] == 'fixed_pixel_range':
         if cfg['disp_min'] is not None and cfg['disp_max'] is not None:
             disp = cfg['disp_min'], cfg['disp_max']
@@ -246,7 +246,7 @@ def disparity_range(rpc1, rpc2, x, y, w, h, H1, H2, matches, A=None):
     # impose a minimal disparity range (TODO this is valid only with the
     # 'center' flag for register_horizontally_translation)
     disp = min(-3, disp[0]), max( 3,  disp[1])
-        
+
     print("Final disparity range: [%f, %f]" % (disp[0], disp[1]))
     return disp
 
@@ -291,7 +291,8 @@ def rectification_homographies(matches, x, y, w, h):
 
 
 def rectify_pair(im1, im2, rpc1, rpc2, x, y, w, h, out1, out2, A=None,
-                 sift_matches=None, method='rpc', hmargin=0, vmargin=0):
+                 sift_matches=None, method='rpc', hmargin=0, vmargin=0,
+                 stereo_matcher=st.StereoMatching(cfg['matching_algorithm'])):
     """
     Rectify a ROI in a pair of images.
 
@@ -311,6 +312,7 @@ def rectify_pair(im1, im2, rpc1, rpc2, x, y, w, h, out1, out2, A=None,
             matches for the fundamental matrix estimation.
         {h,v}margin (optional): horizontal and vertical margins added on the
             sides of the rectified images
+        stereo_matcher : obj, instance of StereoMatching
 
     Returns:
         H1, H2: Two 3x3 matrices representing the rectifying homographies that
@@ -372,7 +374,7 @@ def rectify_pair(im1, im2, rpc1, rpc2, x, y, w, h, out1, out2, A=None,
     H1, H2 = np.dot(T, H1), np.dot(T, H2)
 
     # compute rectifying homographies for non-epipolar mode (rectify the secondary tile only)
-    if block_matching.rectify_secondary_tile_only(cfg['matching_algorithm']):
+    if stereo_matcher.rectify_secondary_tile_only():
         H1_inv = np.linalg.inv(H1)
         H1 = np.eye(3) # H1 is replaced by 2-D array with ones on the diagonal and zeros elsewhere
         H2 = np.dot(H1_inv,H2)
@@ -391,7 +393,7 @@ def rectify_pair(im1, im2, rpc1, rpc2, x, y, w, h, out1, out2, A=None,
     common.image_apply_homography(out1, im1, H1, w0 + 2*hmargin, h0 + 2*vmargin)
     common.image_apply_homography(out2, im2, H2, w0 + 2*hmargin, h0 + 2*vmargin)
 
-    if block_matching.rectify_secondary_tile_only(cfg['matching_algorithm']):
+    if stereo_matcher.rectify_secondary_tile_only():
         pts_in = [[0, 0], [disp_m, 0], [disp_M, 0]]
         pts_out = common.points_apply_homography(H1_inv,
                                                  pts_in)

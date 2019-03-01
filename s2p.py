@@ -40,7 +40,7 @@ from s2plib import parallel
 from s2plib import initialization
 from s2plib import pointing_accuracy
 from s2plib import rectification
-from s2plib.stereo_matching_pkg import stereo_matching as st
+import s2plib.stereo_matching_pkg.stereo_matching as st
 from s2plib import masking
 from s2plib import triangulation
 from s2plib import fusion
@@ -108,13 +108,13 @@ def global_pointing_correction(tiles):
                     common.remove(os.path.join(d, 'center_keypts_sec.txt'))
 
 
-def rectification_pair(tile, i):
+def rectification_pair(tile, i, stereo_matcher):
     """
     Rectify a pair of images on a given tile.
 
-    Args:
-        tile: dictionary containing the information needed to process a tile.
-        i: index of the processed pair
+    :param tile: dictionary containing the information needed to process a tile.
+    :param i: index of the processed pair
+    :param stereo_matcher: obj, s2plib.stereo_matching_pkg.stereo_matching.StereoMatching instance
     """
     out_dir = os.path.join(tile['dir'], 'pair_{}'.format(i))
     x, y, w, h = tile['coordinates']
@@ -173,7 +173,8 @@ def rectification_pair(tile, i):
                                                             rpc2, x, y, w, h,
                                                             rect1, rect2, A, m,
                                                             hmargin=cfg['horizontal_margin'],
-                                                            vmargin=cfg['vertical_margin'])
+                                                            vmargin=cfg['vertical_margin'],
+                                                            stereo_matcher=stereo_matcher)
     np.savetxt(os.path.join(out_dir, 'H_ref.txt'), H1, fmt='%12.6f')
     np.savetxt(os.path.join(out_dir, 'H_sec.txt'), H2, fmt='%12.6f')
     np.savetxt(os.path.join(out_dir, 'disp_min_max.txt'), [disp_min, disp_max],
@@ -184,13 +185,13 @@ def rectification_pair(tile, i):
         common.remove(os.path.join(out_dir,'sift_matches.txt'))
 
 
-def stereo_matching(tile,i):
+def stereo_matching(tile, i, stereo_matcher):
     """
     Compute the disparity of a pair of images on a given tile.
 
-    Args:
-        tile: dictionary containing the information needed to process a tile.
-        i: index of the processed pair
+    :param tile: dictionary containing the information needed to process a tile.
+    :param i: index of the processed pair
+    :param stereo_matcher: obj, s2plib.stereo_matching_pkg.stereo_matching.StereoMatching instance
     """
     out_dir = os.path.join(tile['dir'], 'pair_{}'.format(i))
     x, y = tile['coordinates'][:2]
@@ -214,7 +215,6 @@ def stereo_matching(tile,i):
     mask = os.path.join(out_dir, 'rectified_mask.png')
     disp_min, disp_max = np.loadtxt(os.path.join(out_dir, 'disp_min_max.txt'))
 
-    stereo_matcher = st.StereoMatching(cfg['matching_algorithm'])
     # TODO:
     #   It might be better for cfg to have a per step|algo key somehow, then we could pass such a light cfg around as
     #   optional positional arguments
@@ -737,6 +737,10 @@ def main(user_cfg, steps=ALL_STEPS):
             for t in tiles:
                 f.write(t['json']+os.linesep)
 
+    # set stereo matcher
+    stereo_matcher = st.StereoMatching(cfg['matching_algorithm'])
+    stereo_matcher.desc()
+
     n = len(cfg['images'])
     tiles_pairs = [(t, i) for i in range(1, n) for t in tiles]
 
@@ -751,11 +755,11 @@ def main(user_cfg, steps=ALL_STEPS):
 
     if 'rectification' in steps:
         print('rectifying tiles...')
-        parallel.launch_calls(rectification_pair, tiles_pairs, nb_workers)
+        parallel.launch_calls(rectification_pair, tiles_pairs, nb_workers, stereo_matcher)
 
     if 'matching' in steps:
         print('running stereo matching...')
-        parallel.launch_calls(stereo_matching, tiles_pairs, nb_workers)
+        parallel.launch_calls(stereo_matching, tiles_pairs, nb_workers, stereo_matcher)
 
     if n > 2 and cfg['triangulation_mode'] == 'pairwise':
         if 'disparity-to-height' in steps:

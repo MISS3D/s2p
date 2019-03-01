@@ -32,7 +32,7 @@ class StereoMatching(object):
             except KeyError:
                 raise KeyError('No stereo matching algorithm named {} supported'.format(stereo_method))
         else:
-            return super(StereoMatching, cls).__new__(cls, stereo_method)
+            return super(StereoMatching, cls).__new__(cls)
 
     @abstractmethod
     def desc(self):
