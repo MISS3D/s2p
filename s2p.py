@@ -41,7 +41,8 @@ from s2plib import initialization
 from s2plib import pointing_accuracy
 from s2plib import rectification
 import s2plib.stereo_matching_algo.stereo_matching as st
-from s2plib.stereo_matching_algo import mgm, msmw
+import s2plib.stereo_matching_algo.mgm as mgm
+import s2plib.stereo_matching_algo.msmw as msmw
 from s2plib import masking
 from s2plib import triangulation
 from s2plib import fusion
@@ -115,7 +116,7 @@ def rectification_pair(tile, i, stereo_matcher):
 
     :param tile: dictionary containing the information needed to process a tile.
     :param i: index of the processed pair
-    :param stereo_matcher: obj, s2plib.stereo_matching_pkg.stereo_matching.StereoMatching instance
+    :param stereo_matcher: obj, s2plib.stereo_matching_algo.stereo_matching.StereoMatching instance
     """
     out_dir = os.path.join(tile['dir'], 'pair_{}'.format(i))
     x, y, w, h = tile['coordinates']
@@ -192,7 +193,7 @@ def stereo_matching(tile, i, stereo_matcher):
 
     :param tile: dictionary containing the information needed to process a tile.
     :param i: index of the processed pair
-    :param stereo_matcher: obj, s2plib.stereo_matching_pkg.stereo_matching.StereoMatching instance
+    :param stereo_matcher: obj, s2plib.stereo_matching_algo.stereo_matching.StereoMatching instance
     """
     out_dir = os.path.join(tile['dir'], 'pair_{}'.format(i))
     x, y = tile['coordinates'][:2]
@@ -221,7 +222,8 @@ def stereo_matching(tile, i, stereo_matcher):
     #   optional positional arguments
     #   Please also note that having keys inside cfg that are actually duplicated as positional arguments (such as
     #   disp_min & disp_max is not safe). Maybe such keys should be remove from cfg by rectification.py, or their values
-    #   updated inside cfg by rectification.py
+    #   updated inside cfg by rectification.py. Here we change the name of optional arguments to 'min(max)_disp_range'
+    #   so we avoid mistakes and confusion.
     stereo_matcher.compute_disparity_map(rect1, rect2, disp, mask,
                                          min_disp_range=disp_min, max_disp_range=disp_max, **cfg)
 

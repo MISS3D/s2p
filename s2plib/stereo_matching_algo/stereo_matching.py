@@ -17,24 +17,29 @@ class StereoMatching(object):
     def __new__(cls, stereo_method='Unknown'):
         if cls is StereoMatching:
             if type(stereo_method) is str:
+                # creating a StereoMatching plugin from registered short name given as string
                 try:
                     return super(StereoMatching, cls).__new__(cls.stereo_methods_avail[stereo_method])
                 except KeyError:
                     raise KeyError('No stereo matching algorithm named {} supported'.format(stereo_method))
             else:
                 if type(stereo_method) is unicode:
+                    # creating a StereoMatching plugin from registered short name given as unicode (py2 & 3 compatibility)
                     try:
                         return super(StereoMatching, cls).__new__(cls.stereo_methods_avail[stereo_method.encode('utf-8')])
                     except KeyError:
                         raise KeyError('No stereo matching algorithm named {} supported'.format(stereo_method))
                 else:
+                    # creating a StereoMatching plugin from plugin subclass name
                     try:
                         return super(StereoMatching, cls).__new__(stereo_method)
                     except:
                         raise
         else:
+            # when called from the plugin subclass constructor
             return super(StereoMatching, cls).__new__(cls)
 
+    # decorator to be used for plugin self registration by short name
     @classmethod
     def register_subclass(cls, short_name):
         def decorator(subclass):
