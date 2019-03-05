@@ -54,7 +54,7 @@ def download_srtm_tile(srtm_tile, out_dir,
     if not os.path.exists(out_dir):
         os.makedirs(out_dir)
     if os.path.exists(os.path.join(out_dir, '%s.tif' % srtm_tile)):
-        return
+        return os.path.join(out_dir, '%s.tif' % srtm_tile)
 
     # download the zip file
     srtm_tile_url = '%s/%s.zip' % (srtm_url, srtm_tile)
@@ -135,6 +135,9 @@ def main(cfg_in, srtm_dir):
 
     cfg_out = copy.deepcopy(cfg_in)
     vrt = os.path.join(srtm_dir, 'srtm.vrt')
+
+    if os.path.exists(vrt): os.remove(vrt)
+    print ('RUN: gdalbuildvrt %s %s' % (vrt, ' '.join(files_list)))
     gdal.BuildVRT(vrt, files_list)
     cfg_out['exogenous_dem'] = vrt
     return cfg_out
