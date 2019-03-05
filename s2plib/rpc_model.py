@@ -393,14 +393,14 @@ class RPCModel:
             + self.directLatDen + self.directBias
         d = tree.find('Rational_Function_Model/Global_RFM/Direct_Model')
         for child,id in zip(d,range(82)):
-           child.text = str(direct[id])
+            child.text = '{0:.16e}'.format(direct[id])
 
         # list concatenation of inverse model parameters
         inverse = self.inverseColNum + self.inverseColDen + self.inverseLinNum \
             + self.inverseLinDen + self.inverseBias
         i = tree.find('Rational_Function_Model/Global_RFM/Inverse_Model')
         for child,id in zip(i,range(82)):
-           child.text = str(inverse[id])
+           child.text = '{0:.16e}'.format(inverse[id])
 
         # validity domains
         v = tree.find('Rational_Function_Model/Global_RFM/RFM_Validity')
@@ -411,21 +411,21 @@ class RPCModel:
         vd.find('LAST_COL').text  = str(self.lastCol )
 
         vi = v.find('Inverse_Model_Validity_Domain')
-        vi.find('FIRST_LON').text = str(self.firstLon)
-        vi.find('FIRST_LAT').text = str(self.firstLat)
-        vi.find('LAST_LON').text  = str(self.lastLon )
-        vi.find('LAST_LAT').text  = str(self.lastLat )
+        vi.find('FIRST_LON').text = '{0:.16e}'.format(self.firstLon)
+        vi.find('FIRST_LAT').text = '{0:.16e}'.format(self.firstLat)
+        vi.find('LAST_LON').text  = '{0:.16e}'.format(self.lastLon )
+        vi.find('LAST_LAT').text  = '{0:.16e}'.format(self.lastLat )
 
         # scale and offset
-        v.find('LINE_OFF').text     = str(self.linOff  )
-        v.find('SAMP_OFF').text     = str(self.colOff  )
-        v.find('LAT_OFF').text      = str(self.latOff  )
+        v.find('LINE_OFF').text     = str(self.linOff  + 1)
+        v.find('SAMP_OFF').text     = str(self.colOff  + 1)
+        v.find('LAT_OFF').text      = '{0:.16e}'.format(self.latOff  )
         v.find('LONG_OFF').text     = str(self.lonOff  )
         v.find('HEIGHT_OFF').text   = str(self.altOff  )
         v.find('LINE_SCALE').text   = str(self.linScale)
         v.find('SAMP_SCALE').text   = str(self.colScale)
-        v.find('LAT_SCALE').text    = str(self.latScale)
-        v.find('LONG_SCALE').text   = str(self.lonScale)
+        v.find('LAT_SCALE').text    = '{0:.16e}'.format(self.latScale)
+        v.find('LONG_SCALE').text   = '{0:.16e}'.format(self.lonScale)
         v.find('HEIGHT_SCALE').text = str(self.altScale)
 
         ## Write the XML file!
