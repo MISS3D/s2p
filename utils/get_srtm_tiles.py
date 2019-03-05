@@ -40,51 +40,6 @@ def workaround_json_int64(o):
     if isinstance(o,np.integer) : return int(o)
     raise TypeError
 
-
-def sample_bounding_box(lon_m, lon_M, lat_m, lat_M):
-    """
-    Samples a geodetic "rectangular" region with regularly spaced points.
-    The sampling distance is the srtm resolution, ie 3 arcseconds.
-
-    Args:
-        lon_m, lon_M: min and max longitudes, between -180 and 180
-        lat_m, lat_M: min and max latitudes, between -60 and 60
-
-    Returns:
-        a numpy array, of size N x 2, containing the list of sample locations
-        in geodetic coordinates.
-    """
-    # check parameters
-    assert lon_m > -180
-    assert lon_M < 180
-    assert lon_m < lon_M
-    assert lat_m > -60
-    assert lat_M < 60
-    assert lat_m < lat_M
-
-    # width of srtm bin: 6000x6000 samples in a tile of 5x5 degrees, ie 3
-    # arcseconds (in degrees)
-    srtm_bin = 1.0/1200
-
-    # round down lon_m, lat_m and round up lon_M, lat_M so they are integer
-    # multiples of 3 arcseconds
-    lon_m, lon_M = rpc_utils.round_updown(lon_m, lon_M, srtm_bin)
-    lat_m, lat_M = rpc_utils.round_updown(lat_m, lat_M, srtm_bin)
-
-    # compute the samples: one in the center of each srtm bin
-    lons = np.arange(lon_m, lon_M, srtm_bin) + .5 * srtm_bin
-    lats = np.arange(lat_m, lat_M, srtm_bin) + .5 * srtm_bin
-
-    # put all the samples in an array. There should be a more pythonic way to
-    # do this
-    out = np.zeros((len(lons)*len(lats), 2))
-    for i in range(len(lons)):
-        for j in range(len(lats)):
-            out[i*len(lats)+j, 0] = lons[i]
-            out[i*len(lats)+j, 1] = lats[j]
-
-    return out
-
 def download_srtm_tile(srtm_tile, out_dir,
                        srtm_url='http://data_public:GDdci@data.cgiar-csi.org/srtm/tiles/GeoTIFF'):
     """
@@ -135,11 +90,10 @@ def list_srtm_tiles(rpcfile, x, y, w, h):
     lon_min, lon_max, lat_min, lat_max = rpc_utils.geodesic_bounding_box(rpc,
                                                                          x, y,
                                                                          w, h)
-    ellipsoid_points = sample_bounding_box(lon_min, lon_max, lat_min, lat_max)
     srtm_list = []
 
-    for lon_inc in ellipsoid_points[:,0]:
-        for lat_inc in ellipsoid_points[:,1]:
+    for lon_inc in np.arange(lon_min, lon_max, 5):
+        for lat_inc in np.arange(lat_min, lat_max, 5):
             lat = min(lat_inc, 60)
             lat = max(lat_inc, -60)
 
