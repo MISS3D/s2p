@@ -11,6 +11,8 @@ except ImportError:
 @stereo_matching.StereoMatching.register_subclass('msmw3')
 class msmwMatching(stereo_matching.StereoMatching):
 
+    _omp_num_threads = 1
+
     def desc(self):
         print('msmwMatching algorithm')
 
@@ -35,8 +37,12 @@ class msmwMatching(stereo_matching.StereoMatching):
         self._check_disp_range(im_ref, min_disp_range, max_disp_range)
 
         # define environment variables
+        if 'omp_num_threads' in kwargs:
+            self._omp_num_threads = str(kwargs['omp_num_threads'])
+        varenv = dict()
+        varenv['OMP_NUM_THREADS'] = self._omp_num_threads
         env = os.environ.copy()
-        env['OMP_NUM_THREADS'] = str(kwargs['omp_num_threads'])
+        self._export_environment(env, varenv)
 
         bm_binary = 'msmw'
         common.run('{0} -m {1} -M {2} -il {3} -ir {4} -dl {5} -kl {6}'.format(

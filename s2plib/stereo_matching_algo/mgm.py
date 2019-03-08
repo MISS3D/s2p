@@ -9,6 +9,11 @@ except ImportError:
 @stereo_matching.StereoMatching.register_subclass('mgm')
 class mgmMatching(stereo_matching.StereoMatching):
 
+    _omp_num_threads = 1
+    _median = 1
+    _census_ncc_win = 5
+    _tsgm = 3
+
     def desc(self):
         print('mgmMatching algorithm')
 
@@ -33,11 +38,17 @@ class mgmMatching(stereo_matching.StereoMatching):
         self._check_disp_range(im_ref, min_disp_range, max_disp_range)
 
         # define environment variables
+        if 'omp_num_threads' in kwargs:
+            self._omp_num_threads = str(kwargs['omp_num_threads'])
+        if 'census_ncc_win' in kwargs:
+            self._census_ncc_win = str(kwargs['census_ncc_win'])
+        varenv = dict()
+        varenv['OMP_NUM_THREADS'] = self._omp_num_threads
+        varenv['MEDIAN'] = self._median
+        varenv['CENSUS_NCC_WIN'] = self._census_ncc_win
+        varenv['TSGM'] = self._tsgm
         env = os.environ.copy()
-        env['OMP_NUM_THREADS'] = str(kwargs['omp_num_threads'])
-        env['MEDIAN'] = '1'
-        env['CENSUS_NCC_WIN'] = str(kwargs['census_ncc_win'])
-        env['TSGM'] = '3'
+        self._export_environment(env, varenv)
 
         conf = '{}_confidence.tif'.format(os.path.splitext(out_disp_path)[0])
         common.run('{0} -r {1} -R {2} -s vfit -t census -O 8 {3} {4} {5} -confidence_consensusL {6}'.format('mgm',
@@ -56,6 +67,12 @@ class mgmMatching(stereo_matching.StereoMatching):
 
 @stereo_matching.StereoMatching.register_subclass('mgm_multi')
 class mgm_multiMatching(stereo_matching.StereoMatching):
+
+    _omp_num_threads = 1
+    _stereo_speckle_filter = 25
+    _mindiff = 1
+    _census_ncc_win = 5
+    _subpix = 2
 
     def desc(self):
         print('mgm_multiMatching algorithm')
@@ -81,12 +98,21 @@ class mgm_multiMatching(stereo_matching.StereoMatching):
         self._check_disp_range(im_ref, min_disp_range, max_disp_range)
 
         # define environment variables
+        if 'omp_num_threads' in kwargs:
+            self._omp_num_threads = str(kwargs['omp_num_threads'])
+        if 'stereo_speckle_filter' in kwargs:
+            self._stereo_speckle_filter = str(kwargs['stereo_speckle_filter'])
+        if 'census_ncc_win' in kwargs:
+            self._census_ncc_win = str(kwargs['census_ncc_win'])
+
+        varenv = dict()
+        varenv['OMP_NUM_THREADS'] = self._omp_num_threads
+        varenv['REMOVESMALLCC'] = self._stereo_speckle_filter
+        varenv['MINDIFF']= self._mindiff
+        varenv['CENSUS_NCC_WIN'] = self._census_ncc_win
+        varenv['SUBPIX'] = self._subpix
         env = os.environ.copy()
-        env['OMP_NUM_THREADS'] = str(kwargs['omp_num_threads'])
-        env['REMOVESMALLCC'] = str(kwargs['stereo_speckle_filter'])
-        env['MINDIFF'] = '1'
-        env['CENSUS_NCC_WIN'] = str(kwargs['census_ncc_win'])
-        env['SUBPIX'] = '2'
+        self._export_environment(env, varenv)
 
         # it is required that p2 > p1. The larger p1, p2, the smoother the disparity
         # TODO

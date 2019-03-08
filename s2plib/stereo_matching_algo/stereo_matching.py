@@ -108,6 +108,12 @@ class StereoMatching(object):
 
         return disp_min, disp_max
 
+    @staticmethod
+    def _export_environment(env, varenv):
+        for key, value in varenv.iteritems():
+            env[key] = str(value)
+
+
 
 if __name__ == '__main__':
     """
