@@ -127,16 +127,15 @@ def test_matches_on_rpc_roi():
 def unit_plyflatten():
     f = "tests/data/input_ply/cloud.ply"                       # input cloud
     e = "tests/data/expected_output/plyflatten/dsm_40cm.tiff"  # expected output
-    o = s2p.common.tmpfile(".tiff")                       # actual output
-    s2p.common.run("echo %s | plyflatten 0.4 %s" % (f,o)) # compute dsm
+    o = s2p.common.tmpfile(".tiff")                          # actual output
+    raster, profile = s2p.rasterization.plyflatten_from_plyfiles_list([f], resolution=0.4) # compute dsm
+    s2p.common.rasterio_write(o, raster[:,:,0], profile=profile) # write dsm
     s = "\"%w %h %v %Y\n\"" # statistics to compare: width,height,avg,numnans
     X = s2p.common.tmpfile(".txt")
     Y = s2p.common.tmpfile(".txt")
     s2p.common.run("imprintf %s %s > %s" % (s, o, X))     # actual stats
     s2p.common.run("imprintf %s %s > %s" % (s, e, Y))     # expected stats
     s2p.common.run("diff %s %s" % (X, Y)) # compare stats
-
-
 
 
 def unit_matches_from_rpc():
@@ -164,20 +163,24 @@ def unit_distributed_plyflatten(config):
 
     print('Running plyflatten dsm reference ...')
 
-    clouds = '\n'.join(glob.glob(os.path.join(outdir, "tiles", "*", "*", "cloud.ply")))
+    clouds_list = glob.glob(os.path.join(outdir, "tiles", "*", "*", "cloud.ply"))
     out_dsm = os.path.join(outdir, "dsm_ref.tif")
-    cmd = ['plyflatten', str(test_cfg['dsm_resolution']), out_dsm]
+
+    res = test_cfg['dsm_resolution']
+    roi = None
+
     if 'utm_bbx' in test_cfg:
         bbx = test_cfg['utm_bbx']
         global_xoff = bbx[0]
         global_yoff = bbx[3]
         global_xsize = int(np.ceil((bbx[1]-bbx[0]) / test_cfg['dsm_resolution']))
         global_ysize = int(np.ceil((bbx[3]-bbx[2]) / test_cfg['dsm_resolution']))
-        cmd += ['-srcwin', '"{} {} {} {}"'.format(global_xoff, global_yoff,
-                                                  global_xsize, global_ysize)]
+        roi = (global_xoff, global_yoff, global_xsize, global_ysize)
 
-    run_cmd = "ls %s | %s" % (clouds.replace('\n', ' '), " ".join(cmd))
-    s2p.common.run(run_cmd)
+    raster, profile = s2p.rasterization.plyflatten_from_plyfiles_list(clouds_list,
+                                                                      resolution=res,
+                                                                      roi=roi)
+    s2p.common.rasterio_write(out_dsm, raster[:,:,0], profile=profile)
 
     expected = s2p.common.gdal_read_as_array_with_nans(os.path.join(outdir,'dsm_ref.tif'))
 

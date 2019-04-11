@@ -34,7 +34,8 @@ requirements = ['numpy',
                 'utm',
                 'pyproj',
                 'beautifulsoup4[lxml]',
-                'requests']
+                'requests',
+                'plyfile']
 
 setup(name="s2p",
       version="1.0b6",
