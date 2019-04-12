@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 import numpy as np
-import s2plib.common as common
+from s2p import common
 from abc import ABCMeta, abstractmethod
 
 

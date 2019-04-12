@@ -1,10 +1,10 @@
 import os
-import s2plib.common as common
+from s2p import common
 try:
     # case when the package stereo matching lives on his own
     import stereo_matching
 except ImportError:
-    # case when the package stereo matching is used from another package (say s2plib)
+    # case when the package stereo matching is used from another package (say s2p)
     from . import stereo_matching
 
 

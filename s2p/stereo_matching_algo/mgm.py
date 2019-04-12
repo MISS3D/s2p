@@ -1,5 +1,5 @@
 import os
-import s2plib.common as common
+from s2p import common
 try:
     import stereo_matching
 except ImportError:
