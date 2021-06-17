@@ -1,3 +1,6 @@
+_Warning: this repository is not maintained, please use https://github.com/centreborelli/s2p instead._
+
+
 # S2P - Satellite Stereo Pipeline
 
 [![Build Status](https://travis-ci.org/MISS3D/s2p.svg?branch=master)](https://travis-ci.org/MISS3D/s2p)
@@ -21,7 +24,7 @@ to produce surface models and 3D point clouds from arbitrarily large regions
 of interest or from complete images. If needed, it cuts the region of interest
 in several small tiles and process them in parallel.
 
-Its main source code repository is https://github.com/miss3d/s2p.
+Its main source code repository is https://github.com/centreborelli/s2p.
 
 
 # Installation and dependencies
@@ -40,7 +43,7 @@ Required dependencies (Ubuntu 16.04):
 
 ## For developers: install s2p from sources
 
-    git clone https://github.com/MISS3D/s2p.git --recursive
+    git clone https://github.com/centreborelli/s2p.git --recursive
     cd s2p
     pip install -e .
 
