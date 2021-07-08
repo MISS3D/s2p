@@ -16,6 +16,7 @@ import collections
 import subprocess
 import glob
 
+import rasterio
 import s2p
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -121,6 +122,22 @@ def test_matches_on_rpc_roi():
 
     expected = np.loadtxt('tests/data/expected_output/units/matches_on_rpc_roi.txt')
     assert_arrays_are_equal(computed, expected)
+
+
+def test_image_apply_homography():
+    """
+    Test the function common.image_apply_homography.
+    """
+    H = np.array([[0.51, 0, -20], [0, 1, -20], [0, 0, 1]])
+    s2p.common.image_apply_homography("tests/stripes_resampled.tif",
+                                      "tests/data/units/stripes.tif", H,
+                                      200, 200)
+
+    with rasterio.open("tests/stripes_resampled.tif", "r") as f:
+        computed = f.read()
+    with rasterio.open("tests/data/expected_output/units/stripes_resampled.tif", "r") as f:
+        expected = f.read()
+    np.testing.assert_allclose(computed, expected, atol=1e-2, rtol=1e-2)
 
 
 # test the plyflatten executable
@@ -250,6 +267,7 @@ registered_tests = [('unit_gdal_version', (unit_gdal_version,[])),
                     ('test_matches_on_rpc_roi', (test_matches_on_rpc_roi, [])),
                     ('unit_plyflatten', (unit_plyflatten,[])),
                     ('unit_matches_from_rpc', (unit_matches_from_rpc,[])),
+                    ('test_image_apply_homography', (test_image_apply_homography, [])),
                     ('end2end_pair', (end2end, ['tests/data/input_pair/config.json','tests/data/expected_output/pair/dsm.tif',0.025,1])),
                     ('end2end_triplet', (end2end, ['tests/data/input_triplet/config.json','tests/data/expected_output/triplet/dsm.tif',0.05,2])),
                     ('end2end_mosaic', (end2end_mosaic, ['tests/data/input_triplet/config.json','tests/data/expected_output/triplet/height_map.tif',0.05,2])),
